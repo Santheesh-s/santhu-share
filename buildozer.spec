@@ -1,19 +1,19 @@
 [app]
 
 # (str) Title of your application
-title = SampleApp
+title = santhushare
 
 # (str) Package name
-package.name = sampleapk
+package.name = file
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.novfensec
+package.domain = org.santhushare
 
 # (str) Source code where the main.py live
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,txt,atlas
+source.include_exts = ico,py,png,jpg,kv,txt,atlas
 
 # (list) List of inclusions using pattern matching
 source.include_patterns = images/*.png
