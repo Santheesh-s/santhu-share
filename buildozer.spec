@@ -25,10 +25,10 @@ version = 0.1
 requirements = python3,kivy==2.1.0,kivymd==0.104.2,pillow==8.3.1,requests,chardet,idna,urllib3,certifi,wikipedia,soupsieve,beautifulsoup4
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
+presplash.filename = logo for SANTHU SHARE.ico
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
+icon.filename = logo for SANTHU SHARE.ico
 
 # (str) Supported orientation
 orientation = portrait
