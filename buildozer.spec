@@ -1,48 +1,48 @@
 [app]
 
-# Title of your application
+# (str) Title of your application
 title = santhushare
 
-# Package name
+# (str) Package name
 package.name = files
 
-# Package domain
+# (str) Package domain (needed for android/ios packaging)
 package.domain = org.santhushare
 
-# Source code directory
+# (str) Source code where the main.py live
 source.dir = .
 
-# Source files to include
+# (list) Source files to include (let empty to include all the files)
 source.include_exts = ico,py,png,jpg,kv,txt,atlas
 
-# List of inclusions using pattern matching
+# (list) List of inclusions using pattern matching
 source.include_patterns = images/*.png
 
-# Application version
+# (str) Application versioning
 version = 0.1
 
-# Application requirements
+# (list) Application requirements
 requirements = python3,kivy==2.1.0,kivymd==0.104.2,pillow==8.3.1
 
-# Presplash of the application
+# (str) Presplash of the application
 presplash.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
 
-# Icon of the application
+# (str) Icon of the application
 icon.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
 
-# Supported orientation
+# (str) Supported orientation
 orientation = portrait
 
 [buildozer]
 
-# Log level
+# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
 log_level = 2
 
-# Display warning if buildozer is run as root
+# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
 warn_on_root = 1
 
-# Path to build output storage
+# (str) Path to build output storage
 bin_dir = ./bin
 
-# Android architecture to build for
+# (list) Android architecture to build for
 android.archs = arm64-v8a, armeabi-v7a
