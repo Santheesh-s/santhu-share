@@ -1,64 +1,51 @@
 [app]
-
-# (str) Title of your application
+# Title of your application
 title = santhushare
 
-# (str) Package name
+# Package name
 package.name = file
 
-# (str) Package domain (needed for android/ios packaging)
+# Package domain (needed for android/ios packaging)
 package.domain = org.santhushare
 
-# (str) Source code where the main.py live
+# Source code where the main.py lives
 source.dir = .
 
-# (list) Source files to include (let empty to include all the files)
+# Source files to include (let empty to include all the files)
 source.include_exts = ico,py,png,jpg,kv,txt,atlas
 
-# (list) List of inclusions using pattern matching
+# List of inclusions using pattern matching
 source.include_patterns = images/*.png
 
-# (str) Application versioning (method 1)
+# Application versioning
 version = 0.1
 
-# (list) Application requirements
+# Application requirements
 requirements = python3,kivy==2.1.0,kivymd==0.104.2,pillow==8.3.1
 
-# (str) Presplash of the application
+# Presplash of the application
 presplash.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
 
-# (str) Icon of the application
+# Icon of the application
 icon.filename = %(source.dir)s/"logo for SANTHU SHARE.ico"
 
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
+# Supported orientation
 orientation = portrait
 
-# Android specific settings
 [buildozer]
-
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+# Log level
 log_level = 2
 
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+# Display warning if buildozer is run as root
 warn_on_root = 1
 
-# (list) Android architectures to build for
-android.archs = arm64-v8a, armeabi-v7a
-
-# (int) Target Android API, should be as high as possible.
-android.api = 30
-
-# (int) Minimum API your APK / AAB will support.
-android.minapi = 21
-
-# (str) Android NDK version to use
-android.ndk = 23b
-
-# (bool) Indicate if the application should be fullscreen or not
+# Android specific settings
 fullscreen = 0
-
-# (str) Presplash background color (for android toolchain)
 android.presplash_color = black
-
-# (bool) Allow backup for the application
+android.archs = arm64-v8a, armeabi-v7a
 android.allow_backup = True
+
+# iOS specific settings
+ios.kivy_ios_url = https://github.com/kivy/kivy-ios
+ios.kivy_ios_branch = master
+ios.codesign.allowed = false
