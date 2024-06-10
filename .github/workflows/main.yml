@@ -33,6 +33,18 @@ jobs:
                                   tk-dev libxml2-dev libxmlsec1-dev liblzma-dev lzma libtool pkg-config \
                                   autoconf automake
 
+      - name: Install Android SDK
+        run: |
+          sudo mkdir -p /usr/local/lib/android/sdk
+          curl -o sdk-tools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+          sudo unzip -qq sdk-tools-linux.zip -d /usr/local/lib/android/sdk/cmdline-tools
+          sudo mv /usr/local/lib/android/sdk/cmdline-tools/cmdline-tools /usr/local/lib/android/sdk/cmdline-tools/tools
+          sudo chown -R $USER:$USER /usr/local/lib/android/sdk
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$PATH:/usr/local/lib/android/sdk/cmdline-tools/tools/bin
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -46,6 +58,8 @@ jobs:
           pip install buildozer
 
       - name: Build with Buildozer
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           source venv/bin/activate
           buildozer android debug --verbose
