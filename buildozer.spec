@@ -4,7 +4,7 @@
 title = santhushare
 
 # (str) Package name
-package.name = file
+package.name = files
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.santhushare
