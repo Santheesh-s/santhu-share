@@ -22,9 +22,29 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install buildozer
+        
+    - name: Set up Java
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'zulu'
+        java-version: '11'
+
+    - name: Download and install Android SDK
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip
+        wget https://dl.google.com/android/repository/commandlinetools-linux-6609375_latest.zip -O commandlinetools.zip
+        unzip commandlinetools.zip -d $HOME/.android/cmdline-tools
+        mv $HOME/.android/cmdline-tools/cmdline-tools $HOME/.android/cmdline-tools/tools
+        yes | $HOME/.android/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/.android "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+
+    - name: Set up environment variables
+      run: |
+        echo "ANDROID_SDK_ROOT=$HOME/.android" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$HOME/.android" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.android/cmdline-tools/tools/bin" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.android/platform-tools" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.android/build-tools/30.0.3" >> $GITHUB_ENV
 
     - name: Build APK with Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      with:
-        command: android debug
-        workdir: .  # Directory where buildozer.spec is located
+      run: buildozer android debug
