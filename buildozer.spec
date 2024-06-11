@@ -75,7 +75,7 @@ android.targetapi = 29
 #android.sdcard = False
 
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.arch = armeabi-v7a
+android.archs = armeabi-v7a
 
 # (bool) Copy library instead of making a libpymodules.so
 android.copy_libs = False
