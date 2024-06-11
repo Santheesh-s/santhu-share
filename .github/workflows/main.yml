@@ -40,6 +40,7 @@ jobs:
           libavcodec-dev \
           zlib1g-dev
         pip install buildozer
+        pip install distutils
 
     - name: Build APK
       env:
