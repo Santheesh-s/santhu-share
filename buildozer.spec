@@ -6,7 +6,7 @@ title = santhushare
 # (str) Package name
 package.name = file
 
-# (str) Package domain (needed for android/ios packaging)
+# (str) Package domain (needed for ndroid/ios packaging)
 package.domain = org.santhushare
 
 # (str) Source code where the main.py live
