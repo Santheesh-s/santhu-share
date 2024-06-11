@@ -1,6 +1,6 @@
 [app]
 
-# Title of your application
+# Title of your applicatio
 title = santhushare
 
 # Package name
