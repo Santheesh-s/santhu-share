@@ -42,5 +42,9 @@ jobs:
         pip install buildozer
 
     - name: Build APK
+      env:
+        ANDROID_SDK_ROOT: ${{ secrets.ANDROID_SDK_ROOT }}
+        ANDROID_BUILD_TOOLS_PATH: ${{ secrets.ANDROID_BUILD_TOOLS_PATH }}
+        ANDROID_SDK_TOOLS_PATH: ${{ secrets.ANDROID_SDK_TOOLS_PATH }}
       run: |
         buildozer -v android debug
