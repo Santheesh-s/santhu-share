@@ -4,7 +4,7 @@
 title = santhushare
 
 # Package name
-package.name = file
+package.name = files
 
 # Package domain (needed for Android/iOS packaging)
 package.domain = org.santhushare
