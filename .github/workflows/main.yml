@@ -1,21 +1,29 @@
-name: Build APK
-
+name: CI
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
+      - name: Get Date
+        id: get-date
+        run: echo "::set-output name=date::$(/bin/date -u '+%Y%m%d')"
+
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v2
         with:
-          python-version: 3.8
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
       - name: Setup virtual environment and install buildozer
         run: |
@@ -23,8 +31,8 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install buildozer
-          apt-get update
-          apt-get install -y git
+          sudo apt-get update
+          sudo apt-get install -y git
         shell: bash
 
       - name: Build with Buildozer
@@ -33,16 +41,17 @@ jobs:
           buildozer android debug --verbose
         continue-on-error: true
 
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v2
-        with:
-          name: app-debug
-          path: bin/*.apk
-
       - name: Upload Build Logs
         if: failure()
         uses: actions/upload-artifact@v2
         with:
           name: build-logs
           path: .buildozer/android/platform/build-armeabi-v7a/build/build.log
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v2
+        with:
+          name: package
+          path: bin/*.apk
+          
