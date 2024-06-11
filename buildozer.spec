@@ -33,9 +33,6 @@ android.archs = armeabi-v7a
 # (bool) Copy library instead of making a libpymodules.so
 android.copy_libs = False
 
-# (list) Permissions
-android.permissions = INTERNET
-
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 android.sdk_path = /path/to/android/sdk
 
@@ -56,6 +53,3 @@ description = Your application description
 
 # (str) Application icon (place icon.png in the images directory)
 icon.filename = images/icon.png
-
-# (list) Permissions
-android.permissions = INTERNET
