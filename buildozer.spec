@@ -1,329 +1,234 @@
 [app]
 
 # (str) Title of your application
-title = Pgame Apk
+title = YourAppTitle
 
 # (str) Package name
-package.name = pgame
+package.name = yourapppackage
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.test
+package.domain = org.example
 
-# (str) Source code where the main.py live
+# (str) Source code where the main.py file is located
 source.dir = .
 
-# (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv
-
-# (list) List of inclusions using pattern matching
-#source.include_patterns = assets/*,images/*.png
-
-# (list) Source files to exclude (let empty to not exclude anything)
-#source.exclude_exts = spec
-
-# (list) List of directory to exclude (let empty to not exclude anything)
-#source.exclude_dirs = tests, bin
-
-# (list) List of exclusions using pattern matching
-#source.exclude_patterns = license,images/*/*.jpg
-
-# (str) Application versioning (method 1)
+# (str) The version of your application, keep it in a format x.y.z
 version = 0.1
 
-# (str) Application versioning (method 2)
-# version.regex = __version__ = ['"](.*)['"]
-# version.filename = %(source.dir)s/main.py
+# (str) Icon of the application
+icon.filename = icon.png
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements =python3,pygame,jnius,sdl2,sdl2_image,sdl2_mixer,sdl2_ttf,png,jpeg,kivy,kivymd,pillow
+requirements = kivy,python3crystax
 
-# (str) Custom source folders for requirements
-# Sets custom source for any requirements with recipes
-# requirements.source.kivy = ../../kivy
-
-# (list) Garden requirements
-#garden_requirements =
-
-# (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
-
-# (str) Icon of the application
-#icon.filename = %(source.dir)s/data/icon.png
-
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
+# (str) Supported orientation (landscape, portrait or all)
 orientation = portrait
 
-# (list) List of service to declare
-#services = NAME:ENTRYPOINT_TO_PY,NAME2:ENTRYPOINT2_TO_PY
-
-#
-# OSX Specific
-#
-
-#
-# author = © Copyright Info
-
-# change the major version of python used by the app
-osx.python_version = 3
-
-# Kivy version to use
-osx.kivy_version = 1.9.1
-
-#
-# Android specific
-#
-
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
-
-# (string) Presplash background color (for new android toolchain)
-# Supported formats are: #RRGGBB #AARRGGBB or one of the following names:
-# red, blue, green, black, white, gray, cyan, magenta, yellow, lightgray,
-# darkgray, grey, lightgrey, darkgrey, aqua, fuchsia, lime, maroon, navy,
-# olive, purple, silver, teal.
-#android.presplash_color = #FFFFFF
-
 # (list) Permissions
-#android.permissions = INTERNET
+android.permissions = INTERNET
 
 # (int) Target Android API, should be as high as possible.
-#android.api = 27
+# Default is 27.
+android.api = 29
 
 # (int) Minimum API your APK will support.
-#android.minapi = 21
+android.minapi = 21
 
 # (int) Android SDK version to use
-#android.sdk = 20
+android.sdk = 28
 
-# (str) Android NDK version to use
-#android.ndk = 19b
+# (int) Android NDK version to use
+android.ndk = 21.1.6352462
 
-# (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
-#android.ndk_api = 21
-
-# (bool) Use --private data storage (True) or --dir public storage (False)
-#android.private_storage = True
+# (bool) Use the --private data flag
+android.private_storage = True
 
 # (str) Android NDK directory (if empty, it will be automatically downloaded.)
-#android.ndk_path =
+android.ndk_path = /path/to/your/ndk
 
-# (str) Android SDK directory (if empty, it will be automatically downloaded.)
-#android.sdk_path =
+# (bool) Use the CrystaX NDK
+android.ndk_cython = False
 
-# (str) ANT directory (if empty, it will be automatically downloaded.)
-#android.ant_path =
+# (bool) Use Cython for JNI parts
+android.arch = armeabi-v7a
 
-# (bool) If True, then skip trying to update the Android sdk
-# This can be useful to avoid excess Internet downloads or save time
-# when an update is due and you just want to test/build your package
-# android.skip_update = False
+# (list) Android additionnal libraries to copy into libs/armeabi
+android.add_libs_armeabi = /path/to/your/libs
 
-# (bool) If True, then automatically accept SDK license
-# agreements. This is intended for automation only. If set to False,
-# the default, you will be shown the license when first running
-# buildozer.
-# android.accept_sdk_license = False
+# (list) Android additionnal libraries to copy into libs/arm64-v8a
+android.add_libs_arm64_v8a = /path/to/your/libs
 
-# (str) Android entry point, default is ok for Kivy-based app
-#android.entrypoint = org.renpy.android.PythonActivity
+# (list) Android additionnal libraries to copy into libs/x86
+android.add_libs_x86 = /path/to/your/libs
 
-# (str) Android app theme, default is ok for Kivy-based app
-# android.apptheme = "@android:style/Theme.NoTitleBar"
+# (list) Android additionnal libraries to copy into libs/x86_64
+android.add_libs_x86_64 = /path/to/your/libs
 
-# (list) Pattern to whitelist for the whole project
-#android.whitelist =
+# (list) Android additionnal Java files to copy into src
+#android.add_src = jni/foo.java
 
-# (str) Path to a custom whitelist file
-#android.whitelist_src =
-
-# (str) Path to a custom blacklist file
-#android.blacklist_src =
-
-# (list) List of Java .jar files to add to the libs so that pyjnius can access
-# their classes. Don't add jars that you do not need, since extra jars can slow
-# down the build process. Allows wildcards matching, for example:
-# OUYA-ODK/libs/*.jar
-#android.add_jars = foo.jar,bar.jar,path/to/more/*.jar
-
-# (list) List of Java files to add to the android project (can be java or a
-# directory containing the files)
-#android.add_src =
-
-# (list) Android AAR archives to add (currently works only with sdl2_gradle
-# bootstrap)
-#android.add_aars =
-
-# (list) Gradle dependencies to add (currently works only with sdl2_gradle
-# bootstrap)
-#android.gradle_dependencies =
-
-# (list) add java compile options
-# this can for example be necessary when importing certain java libraries using the 'android.gradle_dependencies' option
-# see https://developer.android.com/studio/write/java8-support for further information
-# android.add_compile_options = "sourceCompatibility = 1.8", "targetCompatibility = 1.8"
-
-# (list) Gradle repositories to add {can be necessary for some android.gradle_dependencies}
-# please enclose in double quotes 
-# e.g. android.gradle_repositories = "maven { url 'https://kotlin.bintray.com/ktor' }"
-#android.add_gradle_repositories =
-
-# (list) packaging options to add 
-# see https://google.github.io/android-gradle-dsl/current/com.android.build.gradle.internal.dsl.PackagingOptions.html
-# can be necessary to solve conflicts in gradle_dependencies
-# please enclose in double quotes 
-# e.g. android.add_packaging_options = "exclude 'META-INF/common.kotlin_module'", "exclude 'META-INF/*.kotlin_module'"
-#android.add_gradle_repositories =
-
-# (list) Java classes to add as activities to the manifest.
-#android.add_activities = com.example.ExampleActivity
+# (list) Android Application remove permissions, comma separated
+#android.permissions.remove = INTERNET
 
 # (str) OUYA Console category. Should be one of GAME or APP
-# If you leave this blank, OUYA support will not be enabled
-#android.ouya.category = GAME
+# If you leave this blank, OUYA category will not be added
+android.ouya.category = GAME
 
 # (str) Filename of OUYA Console icon. It must be a 732x412 png image.
 #android.ouya.icon.filename = %(source.dir)s/data/ouya_icon.png
 
 # (str) XML file to include as an intent filters in <activity> tag
-#android.manifest.intent_filters =
+#android.manifest.intent_filters = filters.xml
 
 # (str) launchMode to set for the main activity
 #android.manifest.launch_mode = standard
 
-# (list) Android additional libraries to copy into libs/armeabi
-#android.add_libs_armeabi = libs/android/*.so
-#android.add_libs_armeabi_v7a = libs/android-v7/*.so
-#android.add_libs_arm64_v8a = libs/android-v8/*.so
-#android.add_libs_x86 = libs/android-x86/*.so
-#android.add_libs_mips = libs/android-mips/*.so
+# (list) Android additional metadata elements to include in the manifest
+#android.manifest.meta_data = com.example.meta_data_key=my Metadata
+
+# (list) Android additional uses-library elements to include in the manifest
+#android.manifest.uses_library = com.google.android.maps
+
+# (list) Android additional uses-permission elements to include in the manifest
+#android.manifest.uses_permission = com.example.permission
+
+# (str) Android XML file to parse (can use more than one for different parts)
+#android.manifest.extra_xml = 
 
 # (bool) Indicate whether the screen should stay on
 # Don't forget to add the WAKE_LOCK permission if you set this to True
 #android.wakelock = False
 
-# (list) Android application meta-data to set (key=value format)
-#android.meta_data =
-
-# (list) Android library project to add (will be added in the
-# project.properties automatically.)
-#android.library_references =
-
-# (list) Android shared libraries which will be added to AndroidManifest.xml using <uses-library> tag
-#android.uses_library =
-
 # (str) Android logcat filters to use
-android.logcat_filters = *:S python:D
+#android.logcat_filters = *:S python:D
 
 # (bool) Copy library instead of making a libpymodules.so
 #android.copy_libs = 1
 
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.arch = arm64-v8a
+#android.arch = armeabi-v7a
 
-# (int) overrides automatic versionCode computation (used in build.gradle)
-# this is not the same as app version and should only be edited if you know what you're doing
-# android.numeric_version = 1
-
-#
-# Python for android (p4a) specific
-#
-
-# (str) python-for-android fork to use, defaults to upstream (kivy)
-#p4a.fork = kivy
+# (str) The name of the OUYA developer key
+#android.ouya.developer_key = key
 
 # (str) python-for-android branch to use, defaults to master
-#p4a.branch = master
+#p4a.branch = develop
 
 # (str) python-for-android git clone directory (if empty, it will be automatically cloned from github)
-#p4a.source_dir =
+#p4a.source_dir = 
 
 # (str) The directory in which python-for-android should look for your own build recipes (if any)
-#p4a.local_recipes =
+#p4a.local_recipes = my_recipes
 
 # (str) Filename to the hook for p4a
-#p4a.hook =
+#p4a.hook = 
 
 # (str) Bootstrap to use for android builds
 # p4a.bootstrap = sdl2
 
+# (str) directory containing recipe for python3crystax that should be used
+#p4a.python3crystax = /home/kivy/venvcrystax
+
+# (list) Application source code
+# You can add your own python file or list of files here
+#source.include_exts = py,png,jpg,kv,atlas,json
+#source.include_patterns = assets/*,images/*.png
+#source.exclude_patterns = license.txt,data/audio/*.wav
+#source.exclude_exts = spec
+
+# (str) Custom source folders for inclusion
+#source.custom_exts = myext.py:app
+
+# (str) The directory where the cache of the cacheable dependencies are
+#p4a.local_build_cache = ./.buildozer/android/platform/build-armeabi-v7a
+
+# (list) Include sqlite3.so
+#p4a.include_sqlite3 = 1
+
+# (list) Include openssl
+#p4a.include_openssl = 1
+
+# (list) Include python modules as zip file
+#p4a.presplash.ziproot = /path/to/zip/file
+
+# (list) Include precompiled python modules
+#p4a.presplash.precompiled = pygame
+
+# (list) Include precompiled python modules as zip file
+#p4a.python_modules = requests, json
+
+# (str) URL of python distribution to use, if empty defaults to
+# https://python.org/ftp/python/ + version
+#p4a.python_branch = 3.8
+
+# (str) The name of the python-for-android dist default is "default"
+#p4a.dist_name = mydist
+
+# (str) The bootstraps to build for android separated by comma
+#p4a.bootstraps = sdl2
+
 # (int) port number to specify an explicit --port= p4a argument (eg for bootstrap flask)
-#p4a.port =
+#p4a.port = 
 
+# (str) Python build recipe to use for python build
+# p4a.recipe = 
 
-#
-# iOS specific
-#
+# (str) Directory to copy application specific data files
+#p4a.datas = 
 
-# (str) Path to a custom kivy-ios folder
-#ios.kivy_ios_dir = ../kivy-ios
-# Alternately, specify the URL and branch of a git checkout:
-ios.kivy_ios_url = https://github.com/kivy/kivy-ios
-ios.kivy_ios_branch = master
+# (str) Directory to copy python dependencies (for sqlite3 SSL support)
+#p4a.depends = 
 
-# Another platform dependency: ios-deploy
-# Uncomment to use a custom checkout
-#ios.ios_deploy_dir = ../ios_deploy
-# Or specify URL and branch
-ios.ios_deploy_url = https://github.com/phonegap/ios-deploy
-ios.ios_deploy_branch = 1.7.0
+# (str) Extra arguments for android compilation phase
+#p4a.extra_args = --link-classes=jni -L/path/to/lib/
 
-# (str) Name of the certificate to use for signing the debug version
-# Get a list of available identities: buildozer ios list_identities
-#ios.codesign.debug = "iPhone Developer: <lastname> <firstname> (<hexstring>)"
+# (str) Extra arguments for android build phase
+#p4a.build_args = -j 4
 
-# (str) Name of the certificate to use for signing the release version
-#ios.codesign.release = %(ios.codesign.debug)s
+# (str) Path to a custom Java bootstrap to include instead of default
+#p4a.javahost_bootstrap = /path/to/javahost/bootstrap.jar
 
+# (str) bootstrap to use for android builds (deprecated)
+# p4a.bootstrap = sdl2
 
-[buildozer]
+# (str) version of crystax ndk to use
+# p4a.crystax = 10.3.2
 
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
+# (str) Android entry point
+#p4a.entry_point = org.kivy.android.PythonActivity
 
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
-warn_on_root = 1
+# (list) Application source code (python files)
+#source.include_exts = py,png,jpg,kv,atlas,json
+#source.include_patterns = assets/*,images/*.png
+#source.exclude_patterns = license.txt,data/audio/*.wav
+#source.exclude_exts = spec
 
-# (str) Path to build artifact storage, absolute or relative to spec file
-# build_dir = ./.buildozer
+# (str) package name
+#package.name = myapp
 
-# (str) Path to build output (i.e. .apk, .ipa) storage
-# bin_dir = ./bin
+# (str) Android entry point
+#p4a.entry_point = org.kivy.android.PythonActivity
 
-#    -----------------------------------------------------------------------------
-#    List as sections
-#
-#    You can define all the "list" as [section:key].
-#    Each line will be considered as a option to the list.
-#    Let's take [app] / source.exclude_patterns.
-#    Instead of doing:
-#
-#[app]
-#source.exclude_patterns = license,data/audio/*.wav,data/images/original/*
-#
-#    This can be translated into:
-#
-#[app:source.exclude_patterns]
-#license
-#data/audio/*.wav
-#data/images/original/*
-#
+# (str) Android app theme, default is '@android:style/Theme.NoTitleBar'
+# https://developer.android.com/guide/topics/ui/look-and-feel/themes
+#android.theme = '@android:style/Theme.NoTitleBar'
 
+# (bool) Enable Android Java debugging
+#p4a.java_debug = False
 
-#    -----------------------------------------------------------------------------
-#    Profiles
-#
-#    You can extend section / key with a profile
-#    For example, you want to deploy a demo version of your application without
-#    HD content. You could first change the title to add "(demo)" in the name
-#    and extend the excluded directories to remove the HD content.
-#
-#[app@demo]
-#title = My Application (demo)
-#
-#[app:source.exclude_patterns@demo]
-#images/hd/*
-#
-#    Then, invoke the command line with the "demo" profile:
-#
-#buildozer --profile demo android debug
+# (str) NDK directory (if empty, it will be automatically downloaded.)
+#android.ndk_path = 
+
+# (str) bootstrap to use for android builds (deprecated)
+#p4a.bootstrap = sdl2
+
+# (str) Android app theme, default is '@android:style/Theme.NoTitleBar'
+# https://developer.android.com/guide/topics/ui/look-and-feel/themes
+#android.theme = '@android:style/Theme.NoTitleBar'
+
+# (bool) Copy library instead of making a libpymodules.so
+#android.copy_libs = 1
+
+# (bool) Uses (and includes) crystax NDK
+#p4a.crystax = 1
