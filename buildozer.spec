@@ -20,7 +20,7 @@ icon.filename = icon.png
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = kivy,python3crystax
+requirements = kivy,python3crystax,kivymd,pillow
 
 # (str) Supported orientation (landscape, portrait or all)
 orientation = portrait
