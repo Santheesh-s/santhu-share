@@ -1,57 +1,36 @@
-name: CI
+name: Build APK
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Get Date
-        id: get-date
-        run: echo "::set-output name=date::$(/bin/date -u '+%Y%m%d')"
-
-      - name: Cache Buildozer global directory
-        uses: actions/cache@v2
-        with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
-
-      - uses: actions/cache@v2
-        with:
-          path: .buildozer
-          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
-
-      - name: Setup virtual environment and install buildozer
+      - name: Install system dependencies
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install buildozer
           sudo apt-get update
-          sudo apt-get install -y git
-        shell: bash
+          sudo apt-get install -y openjdk-11-jdk git
 
-      - name: Build with Buildozer
+      - name: Install Python and required packages
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install Cython
+        run: |
+          python -m pip install Cython
+
+      - name: Install Buildozer
+        run: |
+          python -m pip install buildozer
+
+      - name: Build APK with Buildozer
         run: |
           source venv/bin/activate
-          buildozer android debug --verbose
-        continue-on-error: true
-
-      - name: Upload Build Logs
-        if: failure()
-        uses: actions/upload-artifact@v2
-        with:
-          name: build-logs
-          path: .buildozer/android/platform/build-armeabi-v7a/build/build.log
-
-      - name: Upload artifacts
-        if: success()
-        uses: actions/upload-artifact@v2
-        with:
-          name: package
-          path: bin/*.apk
-          
+          buildozer android debug
