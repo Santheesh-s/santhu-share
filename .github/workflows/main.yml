@@ -32,5 +32,4 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
-          source venv/bin/activate
           buildozer android debug
