@@ -40,12 +40,12 @@ jobs:
           libavcodec-dev \
           zlib1g-dev
         pip install buildozer
-        pip install distutils
 
     - name: Build APK
-      env:
-        ANDROID_SDK_ROOT: ${{ secrets.ANDROID_SDK_ROOT }}
-        ANDROID_BUILD_TOOLS_PATH: ${{ secrets.ANDROID_BUILD_TOOLS_PATH }}
-        ANDROID_SDK_TOOLS_PATH: ${{ secrets.ANDROID_SDK_TOOLS_PATH }}
       run: |
+        # Optional: Check Python version
+        python --version
+        # Optional: Check installed Python packages
+        pip list
+        # Run buildozer command
         buildozer -v android debug
