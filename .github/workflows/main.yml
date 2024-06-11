@@ -26,9 +26,6 @@ jobs:
           path: .buildozer
           key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
-      - name: Install Git
-        run: sudo apt-get update && sudo apt-get install -y git
-
       - name: Install required system dependencies
         run: |
           sudo apt-get update
@@ -66,6 +63,7 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install buildozer
+          pip install git
 
       - name: Build with Buildozer
         env:
