@@ -1,52 +1,46 @@
-# Buildozer (https://github.com/kivy/buildozer) configuration file
+name: Build APK
 
-# (list) List of valid packages (optional)
-# p4a.branch = master
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
-# (str) Title of your application
-title: SanthusShare
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# (str) Package name
-package.name: santhussahre
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-# (str) Package domain (needed for android/ios packaging)
-package.domain: org.example
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
 
-# (str) Source code where the main.py lives
-source.dir: .
+    - name: Install Buildozer and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          ccache \
+          git \
+          libffi-dev \
+          libssl-dev \
+          libsdl2-dev \
+          libsdl2-image-dev \
+          libsdl2-mixer-dev \
+          libsdl2-ttf-dev \
+          libportmidi-dev \
+          libswscale-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          zlib1g-dev
+        pip install buildozer
 
-# (str) Source files to include (e.g. python files, kivy files)
-source.include_exts: py,png,jpg,kv,atlas
-
-# (list) List of application requirements
-requirements: python3,kivy
-
-# (int) Android API to use
-android.api: 21
-
-# (int) Minimum API required
-android.minapi: 21
-
-# (int) Android SDK version to use
-android.sdk: 29
-
-# (str) Android NDK version to use
-android.ndk: 17c
-
-# (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.arch: armeabi-v7a
-
-# (str) Python for android branch to use, defaults to master
-p4a.branch: master
-
-# (str) python-for-android URL to use for checkout
-p4a.url: https://github.com/kivy/python-for-android/archive/master.zip
-
-# (str) Android entry point, default is ok for Kivy-based app
-android.entrypoint: org.kivy.android.PythonActivity
-
-# (str) Android app theme, default is ok for Kivy-based app
-android.apptheme: '@android:style/Theme.NoTitleBar'
-
-# (list) Permissions
-android.permissions: INTERNET
+    - name: Build APK
+      run: |
+        buildozer -v android debug
