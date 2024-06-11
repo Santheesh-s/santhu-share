@@ -51,8 +51,5 @@ android.build_tools = /path/to/android/sdk/build-tools/xx.x.x
 # (str) Path to the Android SDK tools directory
 android.sdk_tools = /path/to/android/sdk/tools
 
-# (str) Android entry point, default is ok for Kivy-based app
-# android.entrypoint = org.kivy.android.PythonActivity
-
-# (str) Android app theme, default is ok for Kivy-based app
-# android.apptheme = '@android:style/Theme.NoTitleBar'
+# (str) Application versioning (method 1)
+version = 0.1
