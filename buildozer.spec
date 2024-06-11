@@ -34,13 +34,13 @@ android.archs = armeabi-v7a
 android.copy_libs = False
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
-android.sdk_path = /path/to/android/sdk
+android.sdk_path = ${{ secrets.ANDROID_SDK_ROOT }}
 
 # (str) Path to the Android build tools directory
-android.build_tools = /path/to/android/sdk/build-tools/xx.x.x
+android.build_tools = ${{ secrets.ANDROID_BUILD_TOOLS_PATH }}
 
 # (str) Path to the Android SDK tools directory
-android.sdk_tools = /path/to/android/sdk/tools
+android.sdk_tools = ${{ secrets.ANDROID_SDK_TOOLS_PATH }}
 
 # (str) Application versioning (method 1)
 version = 1.0
