@@ -1,13 +1,13 @@
 [app]
 
 # (str) Title of your application
-title = YourAppName
+title = SanthusShare
 
 # (str) Package name
-package.name = yourappname
+package.name = santhussahre
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = com.yourdomain
+package.domain = org.example
 
 # (str) Source code where the main.py lives
 source.dir = .
@@ -39,12 +39,6 @@ android.permissions = INTERNET
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 android.sdk_path = /path/to/android/sdk
 
-# (str) Android NDK version to use
-# android.ndk = 17c
-
-# (str) Android NDK directory (if empty, it will be automatically downloaded.)
-# android.ndk_path =
-
 # (str) Path to the Android build tools directory
 android.build_tools = /path/to/android/sdk/build-tools/xx.x.x
 
@@ -52,4 +46,16 @@ android.build_tools = /path/to/android/sdk/build-tools/xx.x.x
 android.sdk_tools = /path/to/android/sdk/tools
 
 # (str) Application versioning (method 1)
-version = 0.1
+version = 1.0
+
+# (list) Application author
+author = Your Name
+
+# (str) Application description
+description = Your application description
+
+# (str) Application icon (place icon.png in the images directory)
+icon.filename = images/icon.png
+
+# (list) Permissions
+android.permissions = INTERNET
