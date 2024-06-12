@@ -10,23 +10,37 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.8'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-pip build-essential git openjdk-8-jdk zlib1g-dev libncurses5-dev libgdbm-dev libc6-dev libbz2-dev libsqlite3-dev libreadline-dev libssl-dev liblzma-dev tk-dev
+
+    - name: Install Python dependencies
+      run: |
         pip install --upgrade pip
         pip install python-for-android
 
     - name: Build the APK
       run: |
-        p4a apk --private . --package=org.example.myapp --name="MyApp" --version=0.1 --bootstrap=sdl2 --requirements=python3,kivy
+        p4a apk --private . \
+                --package=org.example.myapp \
+                --name="MyApp" \
+                --version=0.1 \
+                --bootstrap=sdl2 \
+                --requirements=python3,kivy \
+                --arch=armeabi-v7a \
+                --arch=arm64-v8a
+      env:
+        pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
+        LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
 
     - name: Upload APK
       uses: actions/upload-artifact@v2
