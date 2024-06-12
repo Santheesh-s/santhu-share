@@ -20,20 +20,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install virtualenv buildozer cython
 
-    - name: Set up Android environment
+    - name: Set up JDK and Android SDK
       run: |
         sudo apt-get update
         sudo apt-get install -y openjdk-8-jdk
-        wget https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip
         mkdir -p $HOME/Android/Sdk/cmdline-tools
-        unzip commandlinetools-linux-6858069_latest.zip -d $HOME/Android/Sdk/cmdline-tools
-        yes | $HOME/Android/Sdk/cmdline-tools/tools/bin/sdkmanager --licenses
-        $HOME/Android/Sdk/cmdline-tools/tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+        cd $HOME/Android/Sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
+        unzip commandlinetools-linux-8092744_latest.zip -d $HOME/Android/Sdk/cmdline-tools
+        yes | $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --licenses
+        $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
     - name: Export environment variables
       run: |
         echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "PATH=$HOME/.local/bin:$HOME/Android/Sdk/cmdline-tools/tools/bin:$HOME/Android/Sdk/platform-tools:$PATH" >> $GITHUB_ENV
+        echo "PATH=$HOME/.local/bin:$HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin:$HOME/Android/Sdk/platform-tools:$PATH" >> $GITHUB_ENV
 
     - name: Create virtual environment
       run: |
