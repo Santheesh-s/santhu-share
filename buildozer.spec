@@ -1,64 +1,59 @@
 [app]
+
 # (str) Title of your application
-title = MyApp
+title = YourAppName
 
 # (str) Package name
-package.name = myapp
+package.name = com.santhu
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.myapp
+package.domain = org.santhushare
 
-# (str) Source code where the main.py is located
+# (str) Source code where the main.py live
 source.dir = .
 
-# (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,ico
+# (str) Application versioning (method 1)
+version = 1.0
 
-# (list) Application dependencies
-requirements = python3, kivy
+# (list) Application requirements
+requirements = kivy, requests, kivymd,pillow
 
-# (str) Presplash of the application
-presplash.filename = assets/images/logo.ico
+# (str) Custom source folders for requirements
+# Sets custom source for any requirements with recipes
+# requirements.source.kivy = ../../kivy
 
-# (str) Icon of the application
-icon.filename = assets/images/logo.ico
-
-# (str) Supported orientation (one of: landscape, portrait or all)
-orientation = portrait
+# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
+orientation = landscape
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 1
+fullscreen = 0
 
 # (list) Permissions
-android.permissions = INTERNET
+android.permissions = INTERNET, CAMERA
 
-# (list) Features (adds uses-feature -tags to manifest)
-android.features = android.hardware.camera, android.hardware.camera.autofocus
+# (int) Target Android API, should be as high as possible.
+android.api = 29
 
-# (str) The Android entry point. You should not need to change this.
-android.entrypoint = org.kivy.android.PythonActivity
-
-# (str) The directory in which python is unpacked
-android.unpacked_libs = libs
-
-# (str) Android API to use
-android.api = 31
-
-# (str) Minimum API allowed for Android
+# (int) Minimum API your APK will support.
 android.minapi = 21
 
-# (str) Android NDK version to use
-android.ndk = 23b
+# (str) Android entry point, default is ok for Kivy-based app
+android.entrypoint = org.kivy.android.PythonActivity
 
-# (bool) If true, enables AndroidX support. (used in recent Android SDKs)
-android.enable_androidx = True
+# (str) Icon of the application
+icon.filename = logo.ico
 
-# (list) Patterns to exclude from the build
-# (example: exclude all .txt files)
-exclude_patterns = license,images/*.tmp
+# (str) Path to images directory
+# presplash_path = %(source.dir)s/presplash.png
 
-# (list) List of Java .jar files to add to the libs dir
-#android.add_jars = myJar.jar
+# (str) Path to icon directory
+# icon_path = %(source.dir)s/icon
 
-# (str) Version of your application
-version = 1.0  # Set your version here
+# (str) Android App use python-for-android
+# p4a.source_dir = /home/kivy/Desktop/kivy/examples/demo/touchtracer
+
+# (str) Python-for-android git branch (defaults to master)
+# p4a.branch = develop
+
+# (str) Python-for-android git commit (defaults to HEAD)
+# p4a.revision = HEAD
