@@ -58,6 +58,7 @@ jobs:
         sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
         sed -i 's/^android.ndk =.*/android.ndk = 23.1.7779620/' buildozer.spec
         sed -i 's/^android.permissions =.*/android.permissions = INTERNET/' buildozer.spec
+        sed -i 's/^# version = 0.1/version = 1.0.0/' buildozer.spec
         buildozer -v android debug
 
     - name: Upload APK
