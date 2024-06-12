@@ -29,14 +29,14 @@ jobs:
         unzip commandlinetools-linux-9477386_latest.zip -d $HOME/Android/Sdk/cmdline-tools
         mv $HOME/Android/Sdk/cmdline-tools/cmdline-tools $HOME/Android/Sdk/cmdline-tools/latest
         yes | $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platforms;android-31" "build-tools;31.0.0" "platform-tools"
-        echo "export ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
+        echo "PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_ENV
         source $GITHUB_ENV
 
     - name: Build APK
       run: |
-        mkdir -p myproject
-        cp -r . myproject/
+        mkdir myproject
+        cp -r *.py *.kv *.png myproject/
         cd myproject
         p4a apk --private . --package=org.test.myapp --name "MyApp" --version 0.1 --bootstrap=sdl2 --requirements=python3,kivy
         mv dist/*.apk $GITHUB_WORKSPACE
