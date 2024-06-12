@@ -32,12 +32,14 @@ jobs:
     - name: Install Android SDK and NDK
       run: |
         sudo apt-get install -y wget unzip
-        wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-        mkdir -p android-sdk/cmdline-tools
-        unzip commandlinetools-linux-7583922_latest.zip -d android-sdk/cmdline-tools
-        yes | android-sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-31" "build-tools;31.0.0" "ndk;21.3.6528147"
-      env:
-        ANDROID_SDK_ROOT: ${{ runner.workspace }}/android-sdk
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip commandlinetools-linux-9477386_latest.zip -d $HOME/android-sdk/cmdline-tools
+        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-31" "build-tools;31.0.0" "ndk;21.3.6528147"
+
+    - name: Update PATH
+      run: echo "$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
     - name: Build the APK
       run: |
@@ -50,11 +52,11 @@ jobs:
                 --arch=armeabi-v7a \
                 --arch=arm64-v8a
       env:
-        ANDROIDSDK: ${{ runner.workspace }}/android-sdk
-        ANDROIDNDK: ${{ runner.workspace }}/android-sdk/ndk/21.3.6528147
+        ANDROIDSDK: $HOME/android-sdk
+        ANDROIDNDK: $HOME/android-sdk/ndk/21.3.6528147
         ANDROIDAPI: 31
         ANDROIDMINAPI: 21
-        PATH: ${{ runner.workspace }}/android-sdk/cmdline-tools/bin:${{ runner.workspace }}/android-sdk/platform-tools:$PATH
+        PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH
         pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
         LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
 
