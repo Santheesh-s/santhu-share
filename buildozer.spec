@@ -1,12 +1,12 @@
 [app]
 # (str) Title of your application
-title = Santhushare
+title = MyApp
 
 # (str) Package name
-package.name = santhushare
+package.name = myapp
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.santhushare
+package.domain = org.myapp
 
 # (str) Source code where the main.py is located
 source.dir = .
@@ -14,49 +14,48 @@ source.dir = .
 # (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
 
-# (list) List of inclusions using pattern matching
-source.include_patterns = assets/*,images/*.png
-
-# (str) Application versioning
-version = 0.1
-
-# (list) Application requirements
-requirements = python3,kivy,kivymd,cython,pillow,requests,chardet,idna,urllib3,certifi,wikipedia,soupsieve,beautifulsoup4
+# (list) Application dependencies
+requirements = python3, kivy, kivymd ,pillow
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/logo.ico
+presplash.filename = assets/images/logo.ico
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/logo.ico
+icon.filename = assets/images/logo.ico
 
-# (str) Supported orientation
+# (str) Supported orientation (one of: landscape, portrait or all)
 orientation = portrait
+
+# (bool) Indicate if the application should be fullscreen or not
+fullscreen = 1
 
 # (list) Permissions
 android.permissions = INTERNET
 
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+# (list) Features (adds uses-feature -tags to manifest)
+android.features = android.hardware.camera, android.hardware.camera.autofocus
+
+# (str) The Android entry point. You should not need to change this.
+android.entrypoint = org.kivy.android.PythonActivity
+
+# (str) The directory in which python is unpacked
+android.unpacked_libs = libs
 
 # (str) Android API to use
 android.api = 31
 
-# (str) Minimum Android API to support
+# (str) Minimum API allowed for Android
 android.minapi = 21
 
 # (str) Android NDK version to use
-android.ndk = 21b
+android.ndk = 23b
 
-# (list) Android architectures to build for
-android.archs = arm64-v8a, armeabi-v7a
+# (bool) If true, enables AndroidX support. (used in recent Android SDKs)
+android.enable_androidx = True
 
-# (str) Build output directory
-bin_dir = ./bin
+# (list) Patterns to exclude from the build
+# (example: exclude all .txt files)
+exclude_patterns = license,images/*.tmp
 
-[buildozer]
-
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
-
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
-warn_on_root = 1
+# (list) List of Java .jar files to add to the libs dir
+#android.add_jars = myJar.jar
