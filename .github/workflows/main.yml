@@ -30,15 +30,15 @@ jobs:
     - name: Download Android SDK
       run: |
         mkdir -p $HOME/Android/Sdk
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-7302050_latest.zip -O sdk-tools-linux.zip
-        unzip -q sdk-tools-linux.zip -d $HOME/Android/Sdk
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip -O sdk-tools-linux.zip
+        unzip -q sdk-tools-linux.zip -d $HOME/Android/Sdk/cmdline-tools
         rm sdk-tools-linux.zip
-        yes | $HOME/Android/Sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "build-tools;30.0.3" "platforms;android-30" "ndk;21.4.7075529"
+        yes | $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "build-tools;30.0.3" "platforms;android-31" "ndk;23.1.7779620"
 
     - name: Set up environment variables
       run: |
         echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "$HOME/Android/Sdk/cmdline-tools/bin" >> $GITHUB_PATH
+        echo "$HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
         echo "$HOME/Android/Sdk/platform-tools" >> $GITHUB_PATH
         echo "$HOME/Android/Sdk/build-tools/30.0.3" >> $GITHUB_PATH
 
@@ -55,9 +55,9 @@ jobs:
         buildozer init
         sed -i 's/^source.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas/' buildozer.spec
         sed -i 's/^requirements = python3,kivy.*/requirements = python3,kivy/' buildozer.spec
-        sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
+        sed -i 's/^android.api =.*/android.api = 31/' buildozer.spec
         sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
-        sed -i 's/^android.ndk =.*/android.ndk = 21.4.7075529/' buildozer.spec
+        sed -i 's/^android.ndk =.*/android.ndk = 23.1.7779620/' buildozer.spec
         sed -i 's/^android.permissions =.*/android.permissions = INTERNET/' buildozer.spec
         buildozer -v android debug
 
@@ -66,4 +66,3 @@ jobs:
       with:
         name: myapp
         path: myproject/bin/*.apk
-        
