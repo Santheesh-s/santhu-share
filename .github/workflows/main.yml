@@ -4,58 +4,47 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-pip build-essential git openjdk-8-jdk unzip
-        pip install --upgrade cython buildozer
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y \
+            build-essential \
+            ccache \
+            git \
+            libffi-dev \
+            libsdl2-dev \
+            libssl-dev \
+            libjpeg-dev \
+            libtiff-dev \
+            libffi-dev \
+            libglu1-mesa-dev \
+            libgstreamer-plugins-base1.0-dev \
+            libxmu-dev \
+            libopus0 \
+            opus-tools \
+            portaudio19-dev \
+            python3-dev \
+            zlib1g-dev
+          pip install buildozer
 
-    - name: Download Android SDK
-      run: |
-        mkdir -p $HOME/Android/Sdk
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip -O sdk-tools-linux.zip
-        unzip -q sdk-tools-linux.zip -d $HOME/Android/Sdk/cmdline-tools
-        rm sdk-tools-linux.zip
-        yes | $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "build-tools;30.0.3" "platforms;android-31" "ndk;23.1.7779620"
+      - name: Install Android SDK components
+        run: |
+          # Install Android SDK components using sdkmanager
+          sdkmanager "platform-tools" "build-tools;31.0.0" "platforms;android-31" --sdk_root=$ANDROID_HOME
 
-    - name: Set up environment variables
-      run: |
-        echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "$HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
-        echo "$HOME/Android/Sdk/platform-tools" >> $GITHUB_PATH
-        echo "$HOME/Android/Sdk/build-tools/30.0.3" >> $GITHUB_PATH
-
-    - name: Create and prepare project directory
-      run: |
-        mkdir -p myproject
-        shopt -s extglob
-        cp -r !(myproject) myproject/
-
-    - name: Build APK with Buildozer
-      run: |
-        cd myproject
-        buildozer -v android debug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v2
-      with:
-        name: myapp
-        path: myproject/bin/*.apk
-        
+      - name: Build APK
+        run: |
+          buildozer -v android debug
