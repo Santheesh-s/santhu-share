@@ -45,9 +45,8 @@ jobs:
     - name: Create and prepare project directory
       run: |
         mkdir -p myproject
-        cp -r * myproject/
-        if ls *.kv 1> /dev/null 2>&1; then cp *.kv myproject/; fi
-        if ls *.png 1> /dev/null 2>&1; then cp *.png myproject/; fi
+        shopt -s extglob
+        cp -r !(myproject) myproject/
 
     - name: Build APK with Buildozer
       run: |
@@ -66,3 +65,4 @@ jobs:
       with:
         name: myapp
         path: myproject/bin/*.apk
+        
