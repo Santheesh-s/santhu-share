@@ -5,35 +5,44 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.8'
 
-    - name: Install build dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git python3-dev python3-pip build-essential
-        sudo apt-get install -y libffi-dev libssl-dev liblzma-dev zlib1g-dev
-        sudo apt-get install -y cython
         sudo apt-get install -y openjdk-8-jdk
-        pip install --upgrade pip virtualenv
-        pip install buildozer
-        pip install Cython
+        sudo apt-get install -y zip unzip
+        pip install python-for-android
 
-    - name: Install Aidl
-      run: sudo apt-get install -y aidl
+    - name: Set up Android SDK
+      run: |
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        mkdir -p $HOME/Android/Sdk
+        unzip commandlinetools-linux-9477386_latest.zip -d $HOME/Android/Sdk/cmdline-tools
+        mv $HOME/Android/Sdk/cmdline-tools/cmdline-tools $HOME/Android/Sdk/cmdline-tools/latest
+        yes | $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platforms;android-31" "build-tools;31.0.0" "platform-tools"
+        echo "export ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
+        echo "export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_ENV
+        source $GITHUB_ENV
 
     - name: Build APK
       run: |
-        virtualenv venv
-        source venv/bin/activate
-        pip install -r requirements.txt
-        buildozer android debug
+        mkdir -p myproject
+        cp -r . myproject/
+        cd myproject
+        p4a apk --private . --package=org.test.myapp --name "MyApp" --version 0.1 --bootstrap=sdl2 --requirements=python3,kivy
+        mv dist/*.apk $GITHUB_WORKSPACE
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: MyApp-APK
+        path: myproject/dist/*.apk
