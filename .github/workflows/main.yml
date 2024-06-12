@@ -51,14 +51,6 @@ jobs:
     - name: Build APK with Buildozer
       run: |
         cd myproject
-        buildozer init
-        sed -i 's/^source.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas/' buildozer.spec
-        sed -i 's/^requirements = python3,kivy.*/requirements = python3,kivy/' buildozer.spec
-        sed -i 's/^android.api =.*/android.api = 31/' buildozer.spec
-        sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
-        sed -i 's/^android.ndk =.*/android.ndk = 23.1.7779620/' buildozer.spec
-        sed -i 's/^android.permissions =.*/android.permissions = INTERNET/' buildozer.spec
-        sed -i 's/^# version = 0.1/version = 1.0.0/' buildozer.spec
         buildozer -v android debug
 
     - name: Upload APK
