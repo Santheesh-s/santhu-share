@@ -26,9 +26,7 @@ jobs:
         sudo apt-get install -y openjdk-8-jdk
         pip install --upgrade pip virtualenv
         pip install buildozer
-
-    - name: Install Cython
-      run: pip install Cython
+        pip install Cython
 
     - name: Install Aidl
       run: sudo apt-get install -y aidl
