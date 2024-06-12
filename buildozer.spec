@@ -15,7 +15,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,ico
 
 # (list) Application dependencies
-requirements = python3, kivy, kivymd ,pillow
+requirements = python3, kivy
 
 # (str) Presplash of the application
 presplash.filename = assets/images/logo.ico
@@ -59,3 +59,6 @@ exclude_patterns = license,images/*.tmp
 
 # (list) List of Java .jar files to add to the libs dir
 #android.add_jars = myJar.jar
+
+# (str) Version of your application
+version = 1.0  # Set your version here
