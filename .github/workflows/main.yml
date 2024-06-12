@@ -1,6 +1,6 @@
-name: Build APK
+name: Build and Deploy APK
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -8,41 +8,61 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Python environment
+      uses: actions/setup-python@v2
       with:
         python-version: '3.8'
 
     - name: Install dependencies
       run: |
+        python -m pip install --upgrade pip
+        pip install virtualenv buildozer cython
+
+    - name: Set up Android environment
+      run: |
         sudo apt-get update
         sudo apt-get install -y openjdk-8-jdk
-        sudo apt-get install -y zip unzip
-        pip install python-for-android
+        wget https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip
+        mkdir -p $HOME/Android/Sdk/cmdline-tools
+        unzip commandlinetools-linux-6858069_latest.zip -d $HOME/Android/Sdk/cmdline-tools
+        yes | $HOME/Android/Sdk/cmdline-tools/tools/bin/sdkmanager --licenses
+        $HOME/Android/Sdk/cmdline-tools/tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
-    - name: Set up Android SDK
+    - name: Export environment variables
       run: |
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        mkdir -p $HOME/Android/Sdk
-        unzip commandlinetools-linux-9477386_latest.zip -d $HOME/Android/Sdk/cmdline-tools
-        mv $HOME/Android/Sdk/cmdline-tools/cmdline-tools $HOME/Android/Sdk/cmdline-tools/latest
-        yes | $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platforms;android-31" "build-tools;31.0.0" "platform-tools"
         echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_ENV
-        source $GITHUB_ENV
+        echo "PATH=$HOME/.local/bin:$HOME/Android/Sdk/cmdline-tools/tools/bin:$HOME/Android/Sdk/platform-tools:$PATH" >> $GITHUB_ENV
+
+    - name: Create virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+
+    - name: Install Buildozer requirements
+      run: |
+        venv/bin/pip install buildozer cython
+
+    - name: Copy necessary files
+      run: |
+        mkdir -p myproject
+        cp -r * myproject/
+        if ls *.kv 1> /dev/null 2>&1; then cp *.kv myproject/; fi
+        if ls *.png 1> /dev/null 2>&1; then cp *.png myproject/; fi
 
     - name: Build APK
       run: |
-        mkdir myproject
-        cp -r *.py *.kv *.png myproject/
+        source venv/bin/activate
         cd myproject
-        p4a apk --private . --package=org.test.myapp --name "MyApp" --version 0.1 --bootstrap=sdl2 --requirements=python3,kivy
-        mv dist/*.apk $GITHUB_WORKSPACE
+        buildozer android debug
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        PATH: ${{ env.PATH }}
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v2
       with:
-        name: MyApp-APK
-        path: myproject/dist/*.apk
+        name: myproject-apk
+        path: myproject/bin/*.apk
+        
