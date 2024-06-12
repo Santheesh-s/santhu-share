@@ -4,56 +4,66 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ github.workspace }}/android-sdk/build-tools/31.0.0:$PATH
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk unzip wget
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
 
-      - name: Install Android SDK
-        run: |
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-          unzip commandlinetools-linux-7583922_latest.zip -d $ANDROID_HOME/cmdline-tools
-          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip build-essential git openjdk-8-jdk unzip
+        pip install --upgrade cython buildozer
 
-      - name: Accept Android licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+    - name: Download Android SDK
+      run: |
+        mkdir -p $HOME/Android/Sdk
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-7302050_latest.zip -O sdk-tools-linux.zip
+        unzip -q sdk-tools-linux.zip -d $HOME/Android/Sdk
+        rm sdk-tools-linux.zip
+        yes | $HOME/Android/Sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "build-tools;30.0.3" "platforms;android-30" "ndk;21.4.7075529"
 
-      - name: Install Aidl and build-tools
-        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;31.0.0" "platforms;android-31"
+    - name: Set up environment variables
+      run: |
+        echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
+        echo "$HOME/Android/Sdk/cmdline-tools/bin" >> $GITHUB_PATH
+        echo "$HOME/Android/Sdk/platform-tools" >> $GITHUB_PATH
+        echo "$HOME/Android/Sdk/build-tools/30.0.3" >> $GITHUB_PATH
 
-      - name: Verify Aidl installation
-        run: $ANDROID_HOME/build-tools/31.0.0/aidl --version
+    - name: Create and prepare project directory
+      run: |
+        mkdir -p myproject
+        cp -r * myproject/
+        if ls *.kv 1> /dev/null 2>&1; then cp *.kv myproject/; fi
+        if ls *.png 1> /dev/null 2>&1; then cp *.png myproject/; fi
 
-      - name: Setup Python and install dependencies
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+    - name: Build APK with Buildozer
+      run: |
+        cd myproject
+        buildozer init
+        sed -i 's/^source.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas/' buildozer.spec
+        sed -i 's/^requirements = python3,kivy.*/requirements = python3,kivy/' buildozer.spec
+        sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
+        sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
+        sed -i 's/^android.ndk =.*/android.ndk = 21.4.7075529/' buildozer.spec
+        sed -i 's/^android.permissions =.*/android.permissions = INTERNET/' buildozer.spec
+        buildozer -v android debug
 
-      - name: Install Buildozer
-        run: |
-          python -m pip install --upgrade pip
-          pip install buildozer
-
-      - name: Build APK with Buildozer
-        run: |
-          buildozer android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v2
-        with:
-          name: my-app
-          path: bin/*.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: myapp
+        path: myproject/bin/*.apk
+        
