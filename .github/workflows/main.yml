@@ -9,6 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ github.workspace }}/android-sdk/build-tools/31.0.0:$PATH
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -16,32 +20,36 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk unzip
+          sudo apt-get install -y openjdk-11-jdk unzip wget
 
       - name: Install Android SDK
         run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-          unzip commandlinetools-linux-7583922_latest.zip -d cmdline-tools
-          mkdir -p $ANDROID_HOME/cmdline-tools/
-          mv cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          unzip commandlinetools-linux-7583922_latest.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
 
       - name: Accept Android licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-      - name: Install Aidl
+      - name: Install Aidl and build-tools
         run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;31.0.0" "platforms;android-31"
 
-      - name: Check Aidl installation
-        run: $ANDROID_HOME/cmdline-tools/latest/bin/aidl --version
+      - name: Verify Aidl installation
+        run: $ANDROID_HOME/build-tools/31.0.0/aidl --version
 
-      - name: Install Python dependencies
+      - name: Setup Python and install dependencies
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install Buildozer
         run: |
-          python3 -m pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install buildozer
 
       - name: Build APK with Buildozer
         run: |
-          source venv/bin/activate
           buildozer android debug
 
       - name: Upload APK
