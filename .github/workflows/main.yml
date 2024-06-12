@@ -21,7 +21,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-pip build-essential git openjdk-8-jdk zlib1g-dev libncurses5-dev libgdbm-dev libc6-dev libbz2-dev libsqlite3-dev libreadline-dev libssl-dev liblzma-dev tk-dev
+        sudo apt-get install -y python3-pip build-essential git zlib1g-dev libncurses5-dev libgdbm-dev libc6-dev libbz2-dev libsqlite3-dev libreadline-dev libssl-dev liblzma-dev tk-dev
 
     - name: Install Python dependencies
       run: |
@@ -33,8 +33,9 @@ jobs:
       run: |
         sudo apt-get install -y wget unzip
         wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-        unzip commandlinetools-linux-7583922_latest.zip -d android-sdk
-        yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-31" "build-tools;31.0.0"
+        mkdir -p android-sdk/cmdline-tools
+        unzip commandlinetools-linux-7583922_latest.zip -d android-sdk/cmdline-tools
+        yes | android-sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-31" "build-tools;31.0.0" "ndk;21.3.6528147"
       env:
         ANDROID_SDK_ROOT: ${{ runner.workspace }}/android-sdk
 
@@ -50,10 +51,10 @@ jobs:
                 --arch=arm64-v8a
       env:
         ANDROIDSDK: ${{ runner.workspace }}/android-sdk
-        ANDROIDNDK: ${{ runner.workspace }}/android-sdk/ndk-bundle
+        ANDROIDNDK: ${{ runner.workspace }}/android-sdk/ndk/21.3.6528147
         ANDROIDAPI: 31
         ANDROIDMINAPI: 21
-        PATH: ${{ runner.workspace }}/android-sdk/platform-tools:$PATH
+        PATH: ${{ runner.workspace }}/android-sdk/cmdline-tools/bin:${{ runner.workspace }}/android-sdk/platform-tools:$PATH
         pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
         LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
 
