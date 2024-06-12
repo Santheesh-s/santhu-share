@@ -22,14 +22,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y python3-pip build-essential git openjdk-8-jdk zlib1g-dev libncurses5-dev libgdbm-dev libc6-dev libbz2-dev libsqlite3-dev libreadline-dev libssl-dev liblzma-dev tk-dev
         pip install --upgrade pip
-        pip install buildozer cython
+        pip install python-for-android
 
     - name: Build the APK
       run: |
-        buildozer -v android debug
+        p4a apk --private . --package=org.example.myapp --name="MyApp" --version=0.1 --bootstrap=sdl2 --requirements=python3,kivy
 
     - name: Upload APK
       uses: actions/upload-artifact@v2
       with:
         name: MyApp-APK
-        path: bin/*.apk
+        path: dist/*.apk
