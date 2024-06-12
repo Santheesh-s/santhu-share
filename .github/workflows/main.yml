@@ -1,71 +1,51 @@
-name: Build and Deploy APK
+name: Build APK
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up Python environment
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk unzip
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install virtualenv buildozer cython
+      - name: Install Android SDK
+        run: |
+          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
+          unzip commandlinetools-linux-7583922_latest.zip -d cmdline-tools
+          mkdir -p $ANDROID_HOME/cmdline-tools/
+          mv cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
 
-    - name: Set up JDK and Android SDK
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-8-jdk
-        mkdir -p $HOME/Android/Sdk/cmdline-tools
-        cd $HOME/Android/Sdk/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
-        unzip commandlinetools-linux-8092744_latest.zip -d $HOME/Android/Sdk/cmdline-tools
-        yes | $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --licenses
-        $HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+      - name: Accept Android licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    - name: Export environment variables
-      run: |
-        echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        echo "PATH=$HOME/.local/bin:$HOME/Android/Sdk/cmdline-tools/cmdline-tools/bin:$HOME/Android/Sdk/platform-tools:$PATH" >> $GITHUB_ENV
+      - name: Install Aidl
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;31.0.0" "platforms;android-31"
 
-    - name: Create virtual environment
-      run: |
-        python -m venv venv
-        source venv/bin/activate
+      - name: Check Aidl installation
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/aidl --version
 
-    - name: Install Buildozer requirements
-      run: |
-        venv/bin/pip install buildozer cython
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install buildozer
 
-    - name: Copy necessary files
-      run: |
-        mkdir -p myproject
-        shopt -s extglob
-        cp -r !(myproject) myproject/
-        if ls *.kv 1> /dev/null 2>&1; then cp *.kv myproject/; fi
-        if ls *.png 1> /dev/null 2>&1; then cp *.png myproject/; fi
-      shell: bash
+      - name: Build APK with Buildozer
+        run: |
+          source venv/bin/activate
+          buildozer android debug
 
-    - name: Build APK
-      run: |
-        source venv/bin/activate
-        cd myproject
-        buildozer android debug
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        PATH: ${{ env.PATH }}
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v2
-      with:
-        name: myproject-apk
-        path: myproject/bin/*.apk
-        
+      - name: Upload APK
+        uses: actions/upload-artifact@v2
+        with:
+          name: my-app
+          path: bin/*.apk
