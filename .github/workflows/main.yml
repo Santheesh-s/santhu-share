@@ -1,68 +1,41 @@
-name: Build Kivy App
+name: Build APK
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
+        python-version: ${{ matrix.python-version }}
 
-    - name: Install system dependencies
+    - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-pip build-essential git zlib1g-dev libncurses5-dev libgdbm-dev libc6-dev libbz2-dev libsqlite3-dev libreadline-dev libssl-dev liblzma-dev tk-dev
+        sudo apt-get install -y git python3-dev python3-pip build-essential
+        sudo apt-get install -y libffi-dev libssl-dev liblzma-dev zlib1g-dev
+        sudo apt-get install -y cython
+        sudo apt-get install -y openjdk-8-jdk
+        pip install --upgrade pip virtualenv
+        pip install buildozer
 
-    - name: Install Python dependencies
+    - name: Install Cython
+      run: pip install Cython
+
+    - name: Install Aidl
+      run: sudo apt-get install -y aidl
+
+    - name: Build APK
       run: |
-        pip install --upgrade pip
-        pip install Cython
-        pip install python-for-android
-
-    - name: Install Android SDK and NDK
-      run: |
-        sudo apt-get install -y wget unzip
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip commandlinetools-linux-9477386_latest.zip -d $HOME/android-sdk/cmdline-tools
-        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-31" "build-tools;31.0.0" "ndk;21.3.6528147"
-
-    - name: Update PATH
-      run: echo "$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-
-    - name: Build the APK
-      run: |
-        p4a apk --private . \
-                --package=org.example.myapp \
-                --name="MyApp" \
-                --version=0.1 \
-                --bootstrap=sdl2 \
-                --requirements=python3,kivy \
-                --arch=armeabi-v7a \
-                --arch=arm64-v8a
-      env:
-        ANDROIDSDK: $HOME/android-sdk
-        ANDROIDNDK: $HOME/android-sdk/ndk/21.3.6528147
-        ANDROIDAPI: 31
-        ANDROIDMINAPI: 21
-        PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH
-        pythonLocation: /opt/hostedtoolcache/Python/3.8.18/x64
-        LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v2
-      with:
-        name: MyApp-APK
-        path: dist/*.apk
-        
+        virtualenv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+        buildozer android debug
