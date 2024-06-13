@@ -3,19 +3,23 @@ import cgi
 import socket
 import threading
 import logging
-import sys
 from kivy.app import App
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
+from kivy.utils import platform
+
+if platform == 'android':
+    from android.permissions import request_permissions, Permission
+    request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
 
 import http.server
 import socketserver
 
 # Constants
 PORT = 8080
-UPLOAD_DIR = "/storage/emulated/0/"
+UPLOAD_DIR = "/storage/emulated/0/Download/"
 LOG_FILE = os.path.join(UPLOAD_DIR, "server.log")
 
 # Configure logging
