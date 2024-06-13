@@ -3,6 +3,7 @@ import cgi
 import socket
 import threading
 import logging
+import sys
 from kivy.app import App
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -19,8 +20,13 @@ import socketserver
 
 # Constants
 PORT = 8080
-UPLOAD_DIR = "/storage/emulated/0/Download/"
-LOG_FILE = os.path.join(UPLOAD_DIR, "server.log")
+DOWNLOAD_DIR = "/storage/emulated/0/Download/"
+OBB_DIR = "/storage/emulated/0/Android/obb/com.your.appname/"
+LOG_FILE = os.path.join(OBB_DIR, "server.log")
+
+# Ensure directories exist
+os.makedirs(OBB_DIR, exist_ok=True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Configure logging
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -127,54 +133,64 @@ html_form = b"""<!DOCTYPE html>
 class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
     """Custom handler for file upload requests."""
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write(html_form)
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(html_form)
+        except Exception as e:
+            logging.error(f"Error handling GET request: {e}")
+            self.send_response(500)
+            self.end_headers()
 
     def do_POST(self):
-        ctype, pdict = cgi.parse_header(self.headers['Content-Type'])
-        if ctype == 'multipart/form-data':
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST',
-                         'CONTENT_TYPE': self.headers['Content-Type']}
-            )
+        try:
+            ctype, pdict = cgi.parse_header(self.headers['Content-Type'])
+            if ctype == 'multipart/form-data':
+                form = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'POST',
+                             'CONTENT_TYPE': self.headers['Content-Type']}
+                )
 
-            if 'file' not in form:
-                self.send_response(400)
-                self.end_headers()
-                self.wfile.write(b"No files provided")
-                return
-
-            file_items = form['file']
-            if not isinstance(file_items, list):
-                file_items = [file_items]
-
-            for file_item in file_items:
-                file_data = file_item.file.read()
-                file_name = file_item.filename
-                file_path = os.path.join(UPLOAD_DIR, file_name)
-
-                try:
-                    with open(file_path, 'wb') as f:
-                        f.write(file_data)
-                    logging.info(f"Uploaded file: {file_name}")
-                except Exception as e:
-                    logging.error(f"Failed to write file {file_name}: {e}")
-                    self.send_response(500)
+                if 'file' not in form:
+                    self.send_response(400)
                     self.end_headers()
-                    self.wfile.write(b"Failed to upload file")
+                    self.wfile.write(b"No files provided")
                     return
 
-            self.send_response(200)
+                file_items = form['file']
+                if not isinstance(file_items, list):
+                    file_items = [file_items]
+
+                for file_item in file_items:
+                    file_data = file_item.file.read()
+                    file_name = file_item.filename
+                    file_path = os.path.join(DOWNLOAD_DIR, file_name)
+
+                    try:
+                        with open(file_path, 'wb') as f:
+                            f.write(file_data)
+                        logging.info(f"Uploaded file: {file_name}")
+                    except Exception as e:
+                        logging.error(f"Failed to write file {file_name}: {e}")
+                        self.send_response(500)
+                        self.end_headers()
+                        self.wfile.write(b"Failed to upload file")
+                        return
+
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"Files uploaded successfully!")
+            else:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Invalid form submission")
+        except Exception as e:
+            logging.error(f"Error handling POST request: {e}")
+            self.send_response(500)
             self.end_headers()
-            self.wfile.write(b"Files uploaded successfully!")
-        else:
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(b"Invalid form submission")
 
 class ServerThread(threading.Thread):
     """Thread class to run the server."""
@@ -184,7 +200,6 @@ class ServerThread(threading.Thread):
 
     def run(self):
         try:
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
             local_ip = get_local_ip()
             self.httpd = socketserver.TCPServer((local_ip, PORT), FileUploadHandler)
             logging.info(f"Server is listening on {local_ip}:{PORT}")
@@ -217,23 +232,29 @@ class SanthusShareApp(App):
         return layout
 
     def start_server(self, instance):
-        if self.server_thread is None or not self.server_thread.is_alive():
-            self.server_thread = ServerThread()
-            self.server_thread.start()
-            self.server_status.text = f"Server is listening on http://{get_local_ip()}:{PORT}"
-            logging.info("Server started")
-        else:
-            logging.warning("Server is already running")
+        try:
+            if self.server_thread is None or not self.server_thread.is_alive():
+                self.server_thread = ServerThread()
+                self.server_thread.start()
+                self.server_status.text = f"Server is listening on http://{get_local_ip()}:{PORT}"
+                logging.info("Server started")
+            else:
+                logging.warning("Server is already running")
+        except Exception as e:
+            logging.error(f"Error starting server: {e}")
 
     def stop_server(self, instance):
-        if self.server_thread is not None and self.server_thread.is_alive():
-            self.server_thread.stop()
-            self.server_thread.join()
-            self.server_thread = None
-            self.server_status.text = "Server is stopped"
-            logging.info("Server stopped")
-        else:
-            logging.warning("Server is not running")
+        try:
+            if self.server_thread is not None and self.server_thread.is_alive():
+                self.server_thread.stop()
+                self.server_thread.join()
+                self.server_thread = None
+                self.server_status.text = "Server is stopped"
+                logging.info("Server stopped")
+            else:
+                logging.warning("Server is not running")
+        except Exception as e:
+            logging.error(f"Error stopping server: {e}")
 
 if __name__ == '__main__':
     SanthusShareApp().run()
