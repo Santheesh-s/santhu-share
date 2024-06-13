@@ -1,103 +1,188 @@
 [app]
 
-# Title of your application
+# (str) Title of your application
 title = santhushare
 
-# Package name
+# (str) Package name
 package.name = santhushare
 
-# Package domain (needed for android/ios packaging)
+# (str) Package domain (needed for android/ios packaging)
 package.domain = org.files
 
-# Source code directory
-source.dir = .
+# (str) Source code where the main.py live
+source.include_exts = py,png,jpg,kv,atlas,ico
+#source.include_patterns = assets/*,images/*.png
 
-# Output directory for the package
-build.dir = .
-
-# Application version
-version = 0.1
-
-# Supported orientation
-orientation = portrait
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
-
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
-
-# (list) Permissions
-android.permissions = INTERNET, CAMERA
+# (list) Application requirements
+requirements = kivy, pillow, kivymd,python3
 
 # (int) Target Android API, should be as high as possible.
-android.api = 29
+# android.api = 27
 
 # (int) Minimum API your APK will support.
-android.minapi = 21
+android.api = 21
 
-# (str) Android entry point, default is ok for Kivy-based app
-android.entrypoint = org.kivy.android.PythonActivity
+# (int) Android SDK version to use
+android.sdk = 28
 
-# (str) Icon of the application
+# (str) Android NDK version to use
+android.ndk = 21.1.6352462
 
-# (str) Path to images directory
-# presplash_path = %(source.dir)s/presplash.png
+# (str) Android NDK directory (if empty, it will be automatically downloaded.)
+# android.ndk_path = /home/kivy/Android/Sdk/ndk/21.1.6352462
 
-# (str) Path to icon directory
-# icon_path = %(source.dir)s/icon
+# (str) Android SDK directory (if empty, it will be automatically downloaded.)
+# android.sdk_path = /home/kivy/Android/Sdk
 
-# (str) Android App use python-for-android
-# p4a.source_dir = /home/kivy/Desktop/kivy/examples/demo/touchtracer
+# (str) Python for android build path
+android.p4a_dir = /root/.local/share/python-for-android
 
-# (str) Python-for-android git branch (defaults to master)
-# p4a.branch = develop
+# (str) Path to build artifact storage, absolute or relative to spec file
+# (this should be your current directory)
+# The build directory is used to store cached object files and other temporary files
+build_dir = .buildozer
 
-# (str) Python-for-android git commit (defaults to HEAD)
-# p4a.revision = HEAD
-# Application requirements (comma-separated)
-requirements = python3,kivy,kivymd,pillow
+# (int) Color depth (either 16, 24, or 32)
+orientation = portrait
 
-# Minimum API needed
-osx.python_version = 3
+# (bool) Whether the application should be fullscreen or not
+fullscreen = 1
 
-# Permissions
-#android.permissions = INTERNET
+# (list) Permissions
+# android.permissions = INTERNET
 
-# Android-specific settings
+# (list) Features (adds uses-feature -tags to manifest)
+# android.features = android.hardware.camera
 
-# Target Android API
+# (list) Application meta-data (key=value pairs)
+# android.meta_data = key=value
 
-# iOS specific settings (optional)
-#[app]
+# (list) Extra android activities to declare (here, added a PythonActivity)
+android.add_activites = com.example.ExampleActivity:android:label:ExampleActivity
 
-# Path to a custom kivy-ios folder (if using Kivy for iOS)
-#ios.kivy_ios_dir = ../kivy-ios
+# (str) Android logcat filters to use
+# android.logcat_filters = *:S python:D
 
-# iOS SDK version to use
-#ios.sdk = 12.1
+# (str) OUYA console category. Should be one of GAME or APP
+# If you leave this blank, OUYA support will not be enabled
+# android.ouya.category = GAME
 
-# iOS Python interpreter version (2 by default)
-#ios.python_version = 2
+# (str) Filename of icon (should be copied to /images/icon.png)
+icon.filename = logo.ico
+presplash.filename=logo.ico
+# (str) Supported orientations (one of landscape, sensorLandscape, portrait or all)
+# orientation = portrait
 
-# iOS bundle identifier
-#ios.bundle_identifier = com.example.myapp
+# (bool) If True, then the screen will not turn off automatically
+# wake_lock = False
 
-# Enable on-demand resources for the game (True/False)
-#ios.on_demand_resources = False
+# (list) Permissions
+# permissions = INTERNET
 
-# The iCloud container to use for the app
-#ios.icloud_container = com.example.myapp
+# (list) Features (adds uses-feature -tags to manifest)
+# android.features = android.hardware.usb.host
 
-# The iCloud document versioning identifier
-#ios.icloud_document_versioning = ''
+# (list) Application meta-data (key=value pairs)
+# android.meta_data = key=value
 
-# Entitlements file for the app
-#ios.entitlements = ''
+# (list) Android additional libraries to copy into libs/armeabi
+# android.add_libs_armeabi = libs/android/*.so
 
-# Application bundle to use for the app
-#ios.app_bundle = ''
+# (list) Android additional libraries to copy into libs/armeabi-v7a
+# android.add_libs_armeabi_v7a = libs/android-v7/*.so
 
-# Launch storyboard file of the app
-#ios.launch_storyboard = ''
+# (list) Android additional libraries to copy into libs/arm64-v8a
+# android.add_libs_arm64_v8a = libs/android64/*.so
 
-# URL scheme to use for the app
-#ios.url_scheme = myapp
+# (list) Android additional libraries to copy into libs/x86
+# android.add_libs_x86 = libs/android-x86/*.so
+
+# (list) Android additional libraries to copy into libs/x86_64
+# android.add_libs_x86_64 = libs/android-x86_64/*.so
+
+# (list) Android add-ons to use
+# android.add_ons = pymunk
+
+# (str) Android app theme, style name
+# android.app_theme = @android:style/Theme.NoTitleBar
+
+# (str) Launch mode for the activity
+# android.activity_launch_mode = standard
+
+# (list) Android intents to add to intent filters
+# android.intents =
+
+
+
+# (list) Python modules to compile
+# python_modules = sqlite3,kivy
+
+# (str) Python main entry point
+entry_point = main.py
+
+# (str) python-for-android branch to use, defaults to master
+# p4a.branch = master
+
+# (str) python-for-android git clone directory (if empty, it will be automatically cloned from github)
+# p4a.source_dir = 
+
+# (str) python-for-android git clone directory (if empty, it will be automatically cloned from github)
+# p4a.source_dir = 
+
+# (list) python-for-android whitelist
+# p4a.whitelist = 
+
+# (str) OUYA console category. Should be one of GAME or APP
+# If you leave this blank, OUYA support will not be enabled
+# android.ouya.category = GAME
+
+# (bool) If True, then the screen will not turn off automatically
+# wake_lock = False
+
+# (list) Android permissions
+# android.permissions = INTERNET
+
+# (str) Backend to use, one of (pygame, sdl2, other)
+#osx.python_version = 3
+#ios.kivy_version = 1.11.1
+#ios.codesign.identity = iPhone Developer
+
+# (list) Permissions
+# android.permissions = INTERNET
+
+# (list) Features (adds uses-feature -tags to manifest)
+# android.features = android.hardware.usb.host
+
+# (list) Application meta-data (key=value pairs)
+# android.meta_data = key=value
+
+# (list) Android additional libraries to copy into libs/armeabi
+# android.add_libs_armeabi = libs/android/*.so
+
+# (list) Android additional libraries to copy into libs/armeabi-v7a
+# android.add_libs_armeabi_v7a = libs/android-v7/*.so
+
+# (list) Android additional libraries to copy into libs/arm64-v8a
+# android.add_libs_arm64_v8a = libs/android64/*.so
+
+# (list) Android additional libraries to copy into libs/x86
+# android.add_libs_x86 = libs/android-x86/*.so
+
+# (list) Android additional libraries to copy into libs/x86_64
+# android.add_libs_x86_64 = libs/android-x86_64/*.so
+
+# (list) Android add-ons to use
+# android.add_ons = pymunk
+
+# (str) Android app theme, style name
+# android.app_theme = @android:style/Theme.NoTitleBar
+
+# (str) Launch mode for the activity
+# android.activity_launch_mode = standard
+
+# (list) Android intents to add to intent filters
+# android.intents =
+
+
+# (str) Android logcat filters to use
+# android.logcat_filters = *:S python:D
