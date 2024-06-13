@@ -20,7 +20,39 @@ version = 0.1
 
 # Supported orientation
 orientation = portrait
+# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 
+# (bool) Indicate if the application should be fullscreen or not
+fullscreen = 0
+
+# (list) Permissions
+android.permissions = INTERNET, CAMERA
+
+# (int) Target Android API, should be as high as possible.
+android.api = 29
+
+# (int) Minimum API your APK will support.
+android.minapi = 21
+
+# (str) Android entry point, default is ok for Kivy-based app
+android.entrypoint = org.kivy.android.PythonActivity
+
+# (str) Icon of the application
+
+# (str) Path to images directory
+# presplash_path = %(source.dir)s/presplash.png
+
+# (str) Path to icon directory
+# icon_path = %(source.dir)s/icon
+
+# (str) Android App use python-for-android
+# p4a.source_dir = /home/kivy/Desktop/kivy/examples/demo/touchtracer
+
+# (str) Python-for-android git branch (defaults to master)
+# p4a.branch = develop
+
+# (str) Python-for-android git commit (defaults to HEAD)
+# p4a.revision = HEAD
 # Application requirements (comma-separated)
 requirements = python3,kivy=2.0.0,pillow
 
@@ -33,30 +65,6 @@ osx.python_version = 3
 # Android-specific settings
 
 # Target Android API
-android.api = 29
-
-# Android SDK version to use
-android.sdk = 20
-
-# Android NDK version to use
-android.ndk = 19b
-
-# Android NDK API to use (minimum API supported)
-android.ndk_api = 21
-
-# Application icon file
-icon.filename =logo.ico
-
-# Splash screen (pre-splash) image file
-presplash.filename = logo.ico
-# Android architecture to build for (armeabi-v7a by default)
-#android.arch = armeabi-v7a
-
-# Android entry point (default is okay for Kivy-based app)
-#android.entrypoint = org.kivy.android.PythonActivity
-
-# Android app theme (default is okay for Kivy-based app)
-#android.apptheme = "@android:style/Theme.NoTitleBar"
 
 # iOS specific settings (optional)
 #[app]
