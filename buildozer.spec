@@ -1,6 +1,6 @@
 [app]
 # (str) Title of your application
-title = Santhus Share
+title = Santhu Share
 source.dir=.
 # (str) Package name
 package.name = santhusshare
