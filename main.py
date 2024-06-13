@@ -21,7 +21,7 @@ import socketserver
 # Constants
 PORT = 8080
 DOWNLOAD_DIR = "/storage/emulated/0/Download/"
-OBB_DIR = "/storage/emulated/0/Android/obb/com.your.appname/"
+OBB_DIR = "/storage/emulated/0/santhusshare/santhusshare-0.1-arm64-v8a_armeabi-v7a-debug (1).apk"
 LOG_FILE = os.path.join(OBB_DIR, "server.log")
 
 # Ensure directories exist
