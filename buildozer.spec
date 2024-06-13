@@ -12,6 +12,7 @@ presplash.filename = logo.ico
 icon.filename = logo.ico
 version = 0.1
 requirements = python3,kivy,kivymd,pillow
+source.main = main.py  # Specify your entry point here
 
 orientation = portrait
 fullscreen = 0
