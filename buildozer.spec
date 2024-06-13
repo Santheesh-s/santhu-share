@@ -1,7 +1,7 @@
 [app]
 
 # Title of your application
-title = SANTHU'S SHARE
+title = santhushare
 
 # Package name
 package.name = santhushare
