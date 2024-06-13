@@ -31,7 +31,6 @@ osx.python_version = 3
 #android.permissions = INTERNET
 
 # Android-specific settings
-[app]
 
 # Target Android API
 android.api = 29
