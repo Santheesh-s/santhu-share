@@ -4,26 +4,19 @@ import socket
 import threading
 import logging
 import sys
-import kivy
 from kivy.app import App
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
 from kivy.clock import Clock
 
 import http.server
 import socketserver
-import tkinter.messagebox as messagebox
 
 # Constants
 PORT = 8080
-UPLOAD_DIR = "/storage/emulated/0/"  # Common directory for Android
-LOG_FILE = "server.log"
-
-# Redirect stdout and stderr to the log file
-sys.stdout = open(LOG_FILE, 'a')
-sys.stderr = open(LOG_FILE, 'a')
+UPLOAD_DIR = "/storage/emulated/0/"
+LOG_FILE = os.path.join(UPLOAD_DIR, "server.log")
 
 # Configure logging
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -194,7 +187,6 @@ class ServerThread(threading.Thread):
             self.httpd.serve_forever()
         except Exception as e:
             logging.error(f"Server error: {e}")
-            # Replace tkinter messagebox with kivy notification or log
         logging.info("Server has stopped.")
 
     def stop(self):
