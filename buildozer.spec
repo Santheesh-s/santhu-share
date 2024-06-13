@@ -1,59 +1,96 @@
 [app]
 
-# (str) Title of your application
-title = YourAppName
+# Title of your application
+title = SANTHU'S SHARE
 
-# (str) Package name
-package.name = com.santhu
+# Package name
+package.name = santhushare
 
-# (str) Package domain (needed for android/ios packaging)
-package.domain = org.santhushare
+# Package domain (needed for android/ios packaging)
+package.domain = org.files
 
-# (str) Source code where the main.py live
+# Source code directory
 source.dir = .
 
-# (str) Application versioning (method 1)
-version = 1.0
+# Output directory for the package
+build.dir = .
 
-# (list) Application requirements
-requirements = kivy, requests, kivymd,pillow
+# Application version
+version = 0.1
 
-# (str) Custom source folders for requirements
-# Sets custom source for any requirements with recipes
-# requirements.source.kivy = ../../kivy
+# Supported orientation
+orientation = portrait
 
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
-orientation = landscape
+# Application requirements (comma-separated)
+requirements = python3,kivy=2.0.0,pillow
 
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+# Minimum API needed
+osx.python_version = 3
 
-# (list) Permissions
-android.permissions = INTERNET, CAMERA
+# Permissions
+#android.permissions = INTERNET
 
-# (int) Target Android API, should be as high as possible.
+# Android-specific settings
+[app]
+
+# Target Android API
 android.api = 29
 
-# (int) Minimum API your APK will support.
-android.minapi = 21
+# Android SDK version to use
+android.sdk = 20
 
-# (str) Android entry point, default is ok for Kivy-based app
-android.entrypoint = org.kivy.android.PythonActivity
+# Android NDK version to use
+android.ndk = 19b
 
-# (str) Icon of the application
-icon.filename = logo.ico
+# Android NDK API to use (minimum API supported)
+android.ndk_api = 21
 
-# (str) Path to images directory
-# presplash_path = %(source.dir)s/presplash.png
+# Application icon file
+icon.filename = %(source.dir)/logo.ico
 
-# (str) Path to icon directory
-# icon_path = %(source.dir)s/icon
+# Splash screen (pre-splash) image file
+presplash.filename = %(source.dir)/logo.ico
+# Android architecture to build for (armeabi-v7a by default)
+#android.arch = armeabi-v7a
 
-# (str) Android App use python-for-android
-# p4a.source_dir = /home/kivy/Desktop/kivy/examples/demo/touchtracer
+# Android entry point (default is okay for Kivy-based app)
+#android.entrypoint = org.kivy.android.PythonActivity
 
-# (str) Python-for-android git branch (defaults to master)
-# p4a.branch = develop
+# Android app theme (default is okay for Kivy-based app)
+#android.apptheme = "@android:style/Theme.NoTitleBar"
 
-# (str) Python-for-android git commit (defaults to HEAD)
-# p4a.revision = HEAD
+# iOS specific settings (optional)
+#[app]
+
+# Path to a custom kivy-ios folder (if using Kivy for iOS)
+#ios.kivy_ios_dir = ../kivy-ios
+
+# iOS SDK version to use
+#ios.sdk = 12.1
+
+# iOS Python interpreter version (2 by default)
+#ios.python_version = 2
+
+# iOS bundle identifier
+#ios.bundle_identifier = com.example.myapp
+
+# Enable on-demand resources for the game (True/False)
+#ios.on_demand_resources = False
+
+# The iCloud container to use for the app
+#ios.icloud_container = com.example.myapp
+
+# The iCloud document versioning identifier
+#ios.icloud_document_versioning = ''
+
+# Entitlements file for the app
+#ios.entitlements = ''
+
+# Application bundle to use for the app
+#ios.app_bundle = ''
+
+# Launch storyboard file of the app
+#ios.launch_storyboard = ''
+
+# URL scheme to use for the app
+#ios.url_scheme = myapp
