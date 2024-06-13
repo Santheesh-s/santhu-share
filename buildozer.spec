@@ -45,10 +45,10 @@ android.ndk = 19b
 android.ndk_api = 21
 
 # Application icon file
-icon.filename = %(source.dir)/logo.ico
+icon.filename =logo.ico
 
 # Splash screen (pre-splash) image file
-presplash.filename = %(source.dir)/logo.ico
+presplash.filename = logo.ico
 # Android architecture to build for (armeabi-v7a by default)
 #android.arch = armeabi-v7a
 
