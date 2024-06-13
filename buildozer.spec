@@ -13,7 +13,7 @@ icon.filename = logo.ico
 version = 0.1
 requirements = python3,kivy,kivymd,pillow
 source.main = main.py  # Specify your entry point here
-
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
 orientation = portrait
 fullscreen = 0
 android.archs = armeabi-v7a
