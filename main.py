@@ -21,7 +21,7 @@ import socketserver
 # Constants
 PORT = 8080
 DOWNLOAD_DIR = "/storage/emulated/0/Download/"
-OBB_DIR = "/storage/emulated/0/santhusshare"
+OBB_DIR = "/storage/emulated/0/santhusshare/"
 LOG_FILE = os.path.join(OBB_DIR, "server.log")
 
 # Ensure directories exist
