@@ -18,7 +18,8 @@ version = 0.1
 requirements = python3,kivy
 
 # (list) Permissions
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
+android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+
 
 # (list) Features (added as a list of features)
 # (str) Presplash of the application
