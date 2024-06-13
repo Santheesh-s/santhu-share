@@ -54,7 +54,7 @@ android.entrypoint = org.kivy.android.PythonActivity
 # (str) Python-for-android git commit (defaults to HEAD)
 # p4a.revision = HEAD
 # Application requirements (comma-separated)
-requirements = python3,kivy=2.0.0,pillow
+requirements = python3,kivy,kivymd,pillow
 
 # Minimum API needed
 osx.python_version = 3
