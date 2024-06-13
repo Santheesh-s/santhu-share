@@ -4,7 +4,7 @@ title = Santhu Share
 source.dir=.
 # (str) Package name
 package.name = santhusshare
-
+orientation = portrait
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.example
 
