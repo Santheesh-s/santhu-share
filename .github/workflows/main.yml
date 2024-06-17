@@ -1,7 +1,10 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
@@ -10,46 +13,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            ccache \
-            git \
-            libffi-dev \
-            libsdl2-dev \
-            libssl-dev \
-            libjpeg-dev \
-            libtiff-dev \
-            libffi-dev \
-            libglu1-mesa-dev \
-            libgstreamer-plugins-base1.0-dev \
-            libxmu-dev \
-            libopus0 \
-            opus-tools \
-            portaudio19-dev \
-            python3-dev \
-            zlib1g-dev
-          pip install buildozer
+    - name: Install buildozer
+      run: |
+        sudo apt update
+        sudo apt install -y python3-venv libffi-dev ccache libssl-dev
+        pip install --upgrade cython==0.29.19 virtualenv
+        pip install buildozer
+        sudo apt install -y openjdk-8-jdk
+        sudo apt-get install -y unzip
+        sudo apt-get install -y zlib1g-dev
 
-      - name: Install Android SDK components
-        run: |
-          sdkmanager "platform-tools" "build-tools;31.0.0" "platforms;android-31"
+    - name: Install Android SDK and NDK
+      run: |
+        wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+        mkdir -p $HOME/android-sdk
+        unzip -qq sdk-tools-linux-4333796.zip -d $HOME/android-sdk
+        echo "sdk.dir=$HOME/android-sdk" >> local.properties
+        yes | $HOME/android-sdk/tools/bin/sdkmanager --licenses
+        $HOME/android-sdk/tools/bin/sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.2" "ndk-bundle"
 
-      - name: Set up Android SDK environment
-        run: |
-          echo "export ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "export PATH=$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
+    - name: Build the APK
+      run: |
+        buildozer android debug
+      env:
+        ANDROIDSDK: ${{ secrets.ANDROIDSDK }}
+        ANDROIDNDK: ${{ secrets.ANDROIDNDK }}
 
-      - name: Build APK
-        run: |
-          buildozer -v android debug
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: apk
+        path: bin/*.apk
