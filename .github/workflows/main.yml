@@ -40,9 +40,10 @@ jobs:
         yes | $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
         $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-29" "build-tools;33.0.0" "ndk;21.3.6528147"
 
-    - name: Update Android SDK Tools
+    - name: Update Android SDK
       run: |
         $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk --update
+        $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "build-tools;33.0.0" "platforms;android-29" "ndk;21.3.6528147"
 
     - name: Set up environment variables
       run: |
