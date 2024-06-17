@@ -16,17 +16,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-- name: Set up Java 8
-  uses: actions/setup-java@v2
-  with:
-    java-version: 8
-    architecture: x64
-    distribution: 'jdk'
-    server-id: github
-    server-username: ${{ github.actor }}
-    server-password: ${{ github.token }}
-    check-latest: false
-    overwrite: true
+    - name: Set up Java 8
+      uses: actions/setup-java@v2
+      with:
+        java-version: 8
+        architecture: x64
+        distribution: 'jdk'
+        server-id: github
+        server-username: ${{ github.actor }}
+        server-password: ${{ github.token }}
+        check-latest: false
+        overwrite: true
     
     - name: Install buildozer and dependencies
       run: |
