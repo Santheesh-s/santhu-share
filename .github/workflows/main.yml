@@ -43,7 +43,14 @@ jobs:
       run: |
         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin:$HOME/android-sdk/build-tools/33.0.0" >> $GITHUB_ENV
+
+    - name: Verify AIDL installation
+      run: |
+        if ! command -v aidl &> /dev/null; then
+          echo "aidl could not be found"
+          exit 1
+        fi
 
     - name: Build the APK
       run: |
