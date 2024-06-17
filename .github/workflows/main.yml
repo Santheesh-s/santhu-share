@@ -36,6 +36,7 @@ jobs:
         mkdir -p $HOME/android-sdk/cmdline-tools
         unzip -qq cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
         mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/tools
+        echo "sdk.dir=$HOME/android-sdk" >> $GITHUB_WORKSPACE/local.properties
         yes | $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
         $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-29" "build-tools;33.0.0" "ndk;21.3.6528147"
 
@@ -43,18 +44,17 @@ jobs:
       run: |
         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin:$HOME/android-sdk/build-tools/33.0.0" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin" >> $GITHUB_ENV
 
     - name: Verify AIDL installation
       run: |
         if ! command -v aidl &> /dev/null; then
-          echo "aidl could not be found or is not executable"
+          echo "aidl could not be found"
           exit 1
         fi
 
     - name: Build the APK
       run: |
-        export PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin:$HOME/android-sdk/build-tools/33.0.0
         buildozer android debug
       env:
         ANDROIDSDK: ${{ secrets.ANDROIDSDK }}
