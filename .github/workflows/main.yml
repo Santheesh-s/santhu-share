@@ -48,12 +48,13 @@ jobs:
     - name: Verify AIDL installation
       run: |
         if ! command -v aidl &> /dev/null; then
-          echo "aidl could not be found"
+          echo "aidl could not be found or is not executable"
           exit 1
         fi
 
     - name: Build the APK
       run: |
+        export PATH=$PATH:$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/tools/bin:$HOME/android-sdk/build-tools/33.0.0
         buildozer android debug
       env:
         ANDROIDSDK: ${{ secrets.ANDROIDSDK }}
