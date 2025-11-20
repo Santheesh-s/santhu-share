@@ -27,7 +27,7 @@ export default function App() {
   const [signalingConnected, setSignalingConnected] = useState(false);
   const [iceState, setIceState] = useState<string>('new');
   
-  // LAN Mode: If true, disables STUN servers to force Local Wi-Fi discovery (Fix for Hotspots)
+  // LAN/Hotspot Mode: If true, disables STUN servers to force Local Wi-Fi discovery
   const [lanMode, setLanMode] = useState(false);
   
   // Used to force re-initialization of the Peer instance
@@ -80,16 +80,17 @@ export default function App() {
 
     const fullId = `${APP_PREFIX}${myId}`;
     
-    console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey}, LAN Mode: ${lanMode})`);
+    console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey}, Hotspot Mode: ${lanMode})`);
 
     // STUN Servers Strategy
     // Standard Mode: Use reliable public STUN servers to punch through NATs
-    // LAN Mode: Empty list forces mDNS/Local IP usage (Critical for some Hotspots)
+    // Hotspot Mode: Empty list forces mDNS/Local IP usage (Critical for Mobile Hotspots)
     const stunServers = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
     ];
 
     const peerConfig = {
@@ -97,11 +98,12 @@ export default function App() {
       port: 443,
       secure: true,
       debug: 1, 
-      pingInterval: 10000, // Keep-alive for signaling
+      pingInterval: 5000, // Keep-alive for signaling
       config: {
         iceServers: lanMode ? [] : stunServers,
         sdpSemantics: 'unified-plan',
-        iceTransportPolicy: 'all'
+        iceTransportPolicy: 'all',
+        iceCandidatePoolSize: 10,
       },
     };
 
@@ -128,10 +130,13 @@ export default function App() {
       console.log("Incoming connection from:", conn.peer);
       
       // Collision Handling (Polite Peer Strategy):
-      // If we are currently trying to connect to them, but they called us first:
-      // We ACCEPT their connection and stop our timer.
-      if (connectingToRef.current === conn.peer) {
-        console.warn(`Collision resolved. Accepting incoming connection from ${conn.peer}.`);
+      // If we are currently trying to connect to this same person, but they called us first:
+      // We ACCEPT their connection and CANCEL our own timeout to prevent "Connection Timed Out" errors.
+      const incomingPeerId = conn.peer;
+      const targetPeerId = connectingToRef.current;
+      
+      if (targetPeerId && (targetPeerId === incomingPeerId || targetPeerId.includes(incomingPeerId))) {
+        console.warn(`Collision detected. Accepting incoming connection from ${incomingPeerId} and clearing outbound timeout.`);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
@@ -233,23 +238,24 @@ export default function App() {
     console.log("Attempting to connect to:", targetFullId);
 
     try {
-      // Connect with default reliable: false (UDP) for better NAT traversal
+      // Connect without 'reliable: true' to use UDP (faster, more firewall friendly)
       const conn = peerRef.current.connect(targetFullId);
       
       connectionTimeoutRef.current = setTimeout(() => {
-        if (!conn.open) {
+        // Only trigger timeout if we are STILL trying to connect to this specific ID
+        if (connectingToRef.current === targetFullId && !conn.open) {
           console.warn("Connection timed out for:", targetFullId);
-          // Don't close immediately, sometimes it connects right after timeout
-          // just update UI
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError("Connection timed out. Firewalls might be blocking the direct path.");
+          setError("Connection timed out. Windows Firewall or Mobile Hotspot settings might be blocking the direct path.");
         }
       }, 30000); // 30s timeout
 
       conn.on('open', () => {
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
-        connectingToRef.current = null;
+        if (connectingToRef.current === targetFullId) {
+             connectingToRef.current = null;
+        }
         handleConnection(conn);
       });
 
@@ -295,8 +301,9 @@ export default function App() {
 
 
   const handleConnection = (conn: any) => {
-    // Close existing connection if it's a different one
+    // If we have a lingering open connection that isn't this one, close it
     if (connRef.current && connRef.current !== conn && connRef.current.open) {
+      console.log("Closing previous connection to accept new one.");
       connRef.current.close();
     }
     connRef.current = conn;
@@ -317,22 +324,30 @@ export default function App() {
       setError(null);
       setIceState('connected');
       
+      // Clear any handshake intervals
       if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
       
-      // Aggressive Handshake
-      handshakeIntervalRef.current = setInterval(() => {
-        if (conn.open) {
-           try {
-             conn.send({
-               type: MessageType.HANDSHAKE,
-               payload: { name: displayName }
-             });
-           } catch (e) {
-             console.error("Handshake send error:", e);
-           }
-        }
-      }, 500);
+      // Send Handshake immediately and repeatedly for reliability
+      const sendHandshake = () => {
+          if (conn.open) {
+             try {
+               conn.send({
+                 type: MessageType.HANDSHAKE,
+                 payload: { name: displayName }
+               });
+             } catch (e) { console.error("Handshake error", e); }
+          }
+      };
+
+      sendHandshake();
+      handshakeIntervalRef.current = setInterval(sendHandshake, 500);
       
+      // Stop handshake after 3 seconds to save bandwidth
+      setTimeout(() => {
+          if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+      }, 3000);
+      
+      // Heartbeat
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = setInterval(() => {
         if(conn.open) {
@@ -379,11 +394,14 @@ export default function App() {
 
     switch (message.type) {
       case MessageType.HANDSHAKE:
-        setConnectedPeer({
-          id: connRef.current.peer,
-          name: message.payload.name
-        });
-        setError(null);
+        // Only update if we don't have a peer yet or it matches
+        if (!connectedPeer) {
+            setConnectedPeer({
+              id: connRef.current.peer,
+              name: message.payload.name
+            });
+            setError(null);
+        }
         break;
 
       case MessageType.FILE_META:
@@ -645,9 +663,9 @@ export default function App() {
                 <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
                   <p className="font-semibold mb-1">Hotspot Troubleshooting:</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
-                    <li><strong>Ensure Mobile Data is ON</strong> on the phone while pairing.</li>
-                    <li>Ensure client is connected to the Host's Wi-Fi.</li>
-                    <li>Try toggling "LAN Mode" on BOTH devices.</li>
+                    <li><strong>Turn ON Mobile Data</strong> on the phone while pairing.</li>
+                    <li>Toggle <strong>"Hotspot Mode"</strong> on BOTH devices.</li>
+                    <li><strong>Windows Laptop?</strong> Check Firewall settings or set Network Profile to "Private".</li>
                   </ul>
                 </div>
              )}
@@ -667,7 +685,7 @@ export default function App() {
                    <div>
                      <WifiOff size={32} className="mx-auto mb-2 text-slate-500" />
                      <p className="text-slate-300 font-medium">Internet Required</p>
-                     <p className="text-xs text-slate-500 mt-1">You need internet to pair devices initially. (Unless using LAN Mode).</p>
+                     <p className="text-xs text-slate-500 mt-1">You need internet to pair devices initially. (Unless using Hotspot Mode).</p>
                    </div>
                  </div>
               )}

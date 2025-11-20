@@ -107,7 +107,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
              {onToggleLanMode && !connectedTo && (
                 <button onClick={onToggleLanMode} className={`text-[10px] flex items-center gap-1 transition-colors ${lanMode ? 'text-emerald-400 font-semibold' : 'text-slate-500 hover:text-slate-300'}`} title="Enable if using Mobile Hotspot">
                   {lanMode ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                  <span>{lanMode ? 'LAN Mode' : 'Standard Mode'}</span>
+                  <span>{lanMode ? 'Hotspot Mode' : 'Standard Mode'}</span>
                 </button>
              )}
           </div>
