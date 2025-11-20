@@ -1,0 +1,7 @@
+{
+  "name": "santhu-share",
+  "description": "Secure, serverless file sharing over Wi-Fi using WebRTC. Connect devices locally without consuming internet data for transfers.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
