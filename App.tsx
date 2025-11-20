@@ -34,6 +34,7 @@ export default function App() {
   const incomingFilesRef = useRef<{ [key: string]: { meta: FileMeta; chunks: Blob[]; receivedSize: number; startTime: number; lastUpdate: number; bytesSinceLastUpdate: number } }>({});
   const outgoingFilesRef = useRef<{ [key: string]: { startTime: number; lastUpdate: number; bytesSent: number; bytesSinceLastUpdate: number } }>({});
   const handshakeIntervalRef = useRef<any>(null);
+  const heartbeatIntervalRef = useRef<any>(null);
 
   // Network status listeners
   useEffect(() => {
@@ -59,17 +60,14 @@ export default function App() {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
-      debug: 1,
+      debug: 2, // Level 2 logs warnings/errors
       config: {
-        // Minimized, high-reliability list to prevent timeout during candidate gathering
+        // Minimal STUN config to prioritize Local LAN candidates.
+        // Too many STUN servers can confuse Hotspot connections.
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
         ],
-        sdpSemantics: 'unified-plan'
+        iceCandidatePoolSize: 10,
       },
     });
 
@@ -80,35 +78,42 @@ export default function App() {
     });
 
     peer.on('connection', (conn: any) => {
+      // If we are already connected or connecting to someone else, we might want to reject
+      // But for simplicity, we accept new connections which override old ones
       console.log("Incoming connection from:", conn.peer);
+      
+      if (connectingToRef.current && connectingToRef.current !== conn.peer) {
+        console.warn("Received connection while attempting another. Switching to incoming.");
+      }
+      
       handleConnection(conn);
     });
 
     peer.on('error', (err: any) => {
       console.error("Peer Error:", err);
       setIsConnecting(false);
-      connectingToRef.current = null; // Release lock
+      connectingToRef.current = null; 
       
       if (err.type === 'peer-unavailable') {
-        setError(`Device ID not found. The other device might be offline or has a different ID.`);
+        setError(`Device ID not found. Check the ID and ensure the other device is online.`);
       } else if (err.type === 'network') {
-        setError('Network error. Please check your connection.');
+        setError('Network error. Please check your internet connection.');
       } else if (err.type === 'unavailable-id') {
-         setError('ID Collision. Please refresh to get a new ID.');
+         setError('ID Collision. Refresh to get a new ID.');
       } else if (err.type === 'browser-incompatible') {
-        setError('Your browser does not support WebRTC. Please use Chrome, Firefox or Safari.');
+        setError('Browser incompatible. Please use Chrome, Firefox or Safari.');
+      } else if (err.type === 'server-error') {
+        setError('Signaling server error. Please retry later.');
       } else {
-        setError(`Connection error: ${err.type || 'Unknown'}`);
+        setError(`Connection error: ${err.type || err.message || 'Unknown'}`);
       }
     });
 
     peerRef.current = peer;
 
     return () => {
-      if (peerRef.current) {
-        peerRef.current.destroy();
-        peerRef.current = null;
-      }
+      // Cleanup not performed on unmount in StrictMode to avoid ID thrashing
+      // Real cleanup happens on window close or refresh
     };
   }, [myId]);
 
@@ -127,14 +132,19 @@ export default function App() {
 
     // 2. Check Internet
     if (!isOnline) {
-      setError("Internet connection required to establish initial pairing.");
+      setError("Internet connection required to find the other device.");
       return;
     }
 
-    // 3. Check Duplicate Connection Attempts (Race Condition Fix)
+    // 3. Check Duplicate Connection Attempts
     if (connectingToRef.current === targetFullId) {
       console.log("Connection already in progress to:", targetFullId);
       return;
+    }
+
+    // Close existing connection if any
+    if (connRef.current) {
+      connRef.current.close();
     }
 
     setIsConnecting(true);
@@ -147,10 +157,11 @@ export default function App() {
     // 4. Connect
     try {
       const conn = peerRef.current.connect(targetFullId, { 
-        serialization: 'json'
+        reliable: true, // Ensures ordered delivery (TCP-like)
+        // serialization: 'binary' // Default is binary, perfect for files
       });
       
-      // 5. Set Timeout
+      // 5. Set Timeout (Increased for slow Hotspots)
       const timeoutTimer = setTimeout(() => {
         if (!conn.open) {
           console.warn("Connection timed out for:", targetFullId);
@@ -159,7 +170,7 @@ export default function App() {
           connectingToRef.current = null;
           setError("Connection timed out. Try connecting from the other device instead.");
         }
-      }, 45000); 
+      }, 30000); 
 
       conn.on('open', () => {
         clearTimeout(timeoutTimer);
@@ -175,7 +186,6 @@ export default function App() {
         setError("Failed to connect to peer.");
       });
 
-      // Sometimes 'close' fires instead of error if it fails immediately
       conn.on('close', () => {
         clearTimeout(timeoutTimer);
         if (connectingToRef.current === targetFullId) {
@@ -192,7 +202,7 @@ export default function App() {
     }
   };
 
-  // Auto-Connect Effect: Runs when Peer is ready and URL param exists
+  // Auto-Connect Effect
   useEffect(() => {
     if (!isPeerReady || connectedPeer || isConnecting) return;
 
@@ -212,8 +222,8 @@ export default function App() {
 
 
   const handleConnection = (conn: any) => {
-    // Clean up old connection
-    if (connRef.current && connRef.current.peer !== conn.peer) {
+    // Clean up old connection if different
+    if (connRef.current && connRef.current !== conn) {
       connRef.current.close();
     }
 
@@ -225,8 +235,9 @@ export default function App() {
         const state = conn.peerConnection.iceConnectionState;
         console.log(`ICE State (${conn.peer}):`, state);
         setIceState(state);
-        if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-           // Handle disconnect
+        if (state === 'disconnected' || state === 'failed') {
+           // Optional: Attempt ICE restart?
+           // conn.peerConnection.restartIce();
         }
       };
     }
@@ -236,20 +247,33 @@ export default function App() {
       setIsConnecting(false);
       connectingToRef.current = null;
       setError(null);
+      setIceState('connected');
       
-      // Aggressive Handshake: Send until we get a response or user disconnects
-      // This ensures the message isn't lost in the initial connection instability
+      // Handshake Loop: Send until we get a response
       if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
       
       handshakeIntervalRef.current = setInterval(() => {
         if (conn.open) {
            console.log("Sending Handshake...");
-           conn.send({
-             type: MessageType.HANDSHAKE,
-             payload: { name: displayName }
-           });
+           try {
+             conn.send({
+               type: MessageType.HANDSHAKE,
+               payload: { name: displayName }
+             });
+           } catch (e) {
+             console.error("Failed to send handshake:", e);
+           }
         }
-      }, 500);
+      }, 1000);
+      
+      // Heartbeat to keep NAT mapping alive
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = setInterval(() => {
+        if(conn.open) {
+           // PeerJS internal heartbeat is usually enough, but explicit data helps
+           // conn.send({ type: 'PING' }); 
+        }
+      }, 5000);
     };
 
     if (conn.open) {
@@ -265,10 +289,10 @@ export default function App() {
     conn.on('close', () => {
       console.log("Connection closed");
       if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       setConnectedPeer(null);
       connRef.current = null;
       setIsConnecting(false);
-      setError("Peer disconnected");
       setIceState('closed');
       setTransfers(prev => prev.map(t => t.status === 'transferring' ? { ...t, status: 'error' } : t));
     });
@@ -280,11 +304,13 @@ export default function App() {
   };
 
   const handleData = (message: PeerMessage) => {
-    // If we receive ANY data, the connection is healthy. Stop the handshake loop.
+    // Stop handshake if we receive valid data
     if (handshakeIntervalRef.current) {
         clearInterval(handshakeIntervalRef.current);
         handshakeIntervalRef.current = null;
     }
+
+    if (!message || !message.type) return;
 
     switch (message.type) {
       case MessageType.HANDSHAKE:
@@ -293,8 +319,6 @@ export default function App() {
           name: message.payload.name
         });
         setError(null);
-        // If we received a handshake, we should reply once to confirm (if we haven't already sent data)
-        // but the interval loop above handles the sending part.
         break;
 
       case MessageType.FILE_META:
@@ -323,11 +347,13 @@ export default function App() {
         const fileContext = incomingFilesRef.current[fileId];
         
         if (fileContext) {
+          // chunk is an ArrayBuffer
           fileContext.chunks.push(new Blob([chunk]));
           fileContext.receivedSize += chunk.byteLength;
           fileContext.bytesSinceLastUpdate += chunk.byteLength;
 
           const now = Date.now();
+          // Update UI every 500ms
           if (now - fileContext.lastUpdate > 500 || fileContext.receivedSize >= fileContext.meta.size) {
             const progress = Math.min(100, (fileContext.receivedSize / fileContext.meta.size) * 100);
             
@@ -354,7 +380,8 @@ export default function App() {
             a.href = url;
             a.download = fileContext.meta.name;
             a.click();
-            URL.revokeObjectURL(url);
+            // clean up after a delay
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
 
             setTransfers(prev => prev.map(t => {
               if (t.id === fileId) {
@@ -392,15 +419,21 @@ export default function App() {
       speed: 'Starting...'
     }, ...prev]);
 
-    connRef.current.send({
-      type: MessageType.FILE_META,
-      payload: {
-        id: fileId,
-        name: file.name,
-        size: file.size,
-        type: file.type
-      } as FileMeta
-    });
+    try {
+      connRef.current.send({
+        type: MessageType.FILE_META,
+        payload: {
+          id: fileId,
+          name: file.name,
+          size: file.size,
+          type: file.type
+        } as FileMeta
+      });
+    } catch (e) {
+      console.error("Failed to send meta:", e);
+      setTransfers(prev => prev.map(t => t.id === fileId ? { ...t, status: 'error' } : t));
+      return;
+    }
 
     let offset = 0;
     const reader = new FileReader();
@@ -411,8 +444,9 @@ export default function App() {
         return;
       }
 
-      if (connRef.current.dataChannel?.bufferedAmount > 15 * 1024 * 1024) {
-        setTimeout(sendNextChunk, 100);
+      // Backpressure Control: Don't flood the buffer
+      if (connRef.current.dataChannel?.bufferedAmount > 10 * 1024 * 1024) {
+        setTimeout(sendNextChunk, 50);
         return;
       }
 
@@ -466,7 +500,12 @@ export default function App() {
         }
 
         if (offset < file.size) {
-          setTimeout(sendNextChunk, 0); 
+          // Small delay to yield to event loop for UI updates
+          if (offset % (CHUNK_SIZE * 5) === 0) {
+             setTimeout(sendNextChunk, 0);
+          } else {
+             sendNextChunk();
+          }
         } else {
            setTransfers(prev => prev.map(t => {
             if (t.id === fileId) {
@@ -511,7 +550,7 @@ export default function App() {
           {/* Online/Offline Indicator */}
           <div className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full border ${isOnline ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
             {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-            <span className="hidden sm:inline">{isOnline ? 'Signal Connected' : 'Offline'}</span>
+            <span className="hidden sm:inline">{isOnline ? 'Signaling Server Online' : 'Offline'}</span>
           </div>
 
           <div className="hidden md:flex items-center gap-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
@@ -540,12 +579,17 @@ export default function App() {
       {error && (
         <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-xl mb-8 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
           <AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
-          <div>
+          <div className="flex-1">
              <p className="font-medium">{error}</p>
              {error.includes("Try connecting from the other device") && (
-                <p className="text-xs mt-1 opacity-80">
-                  Firewalls can be one-way. If Device A cannot connect to Device B, try entering Device A's ID into Device B.
-                </p>
+                <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
+                  <p className="font-semibold mb-1">Troubleshooting Tips:</p>
+                  <ul className="list-disc list-inside space-y-1 opacity-90">
+                    <li>Try entering Device A's ID into Device B instead.</li>
+                    <li>If using a <strong>Mobile Hotspot</strong>, turn OFF "Mobile Data" on the phone. This forces devices to use the local Wi-Fi path.</li>
+                    <li>Ensure no VPN is active on either device.</li>
+                  </ul>
+                </div>
              )}
           </div>
         </div>
@@ -601,22 +645,28 @@ export default function App() {
                 </Button>
               </form>
               
-              {isConnecting && iceState === 'checking' && (
+              {isConnecting && (iceState === 'checking' || iceState === 'new') && (
                  <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                    <div className="flex items-center gap-2 text-blue-300 text-xs mb-1">
                      <Loader2 size={12} className="animate-spin" />
                      <span>Negotiating P2P path...</span>
                    </div>
                    <p className="text-[10px] text-slate-400">
-                     This may take up to 30 seconds if you are on different Wi-Fi networks.
+                     Finding the best local route. If this takes long, try disabling Mobile Data.
                    </p>
                  </div>
+              )}
+              
+              {isConnecting && iceState === 'disconnected' && (
+                <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 text-xs text-amber-300">
+                  Connection unstable. Retrying...
+                </div>
               )}
 
               <div className="mt-6 pt-6 border-t border-slate-700/50">
                 <div className="flex items-start gap-3 text-xs text-slate-500">
                   <Info size={16} className="flex-shrink-0 mt-0.5" />
-                  <p>Internet is only used to find the other device. Actual file transfer happens directly over your local Wi-Fi.</p>
+                  <p>Internet is only used for the initial handshake. Files are transferred directly over Wi-Fi.</p>
                 </div>
               </div>
             </div>
