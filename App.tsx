@@ -27,6 +27,9 @@ export default function App() {
   const [isPeerReady, setIsPeerReady] = useState(false);
   const [iceState, setIceState] = useState<string>('new');
   
+  // LAN Mode: If true, disables STUN servers to force Local Wi-Fi discovery (Fix for Hotspots)
+  const [lanMode, setLanMode] = useState(false);
+  
   // Used to force re-initialization of the Peer instance
   const [resetKey, setResetKey] = useState(0);
 
@@ -74,24 +77,28 @@ export default function App() {
 
     const fullId = `${APP_PREFIX}${myId}`;
     
-    console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey})`);
+    console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey}, LAN Mode: ${lanMode})`);
 
-    const peer = new Peer(fullId, {
+    // LAN Mode Configuration:
+    // If enabled, we send an empty iceServers array. This forces the browser to ignore
+    // public STUN servers and only gather Local IP candidates.
+    // This is critical for Mobile Hotspots which often advertise a Cellular IP that cannot be routed to.
+    const peerConfig = {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
       debug: 1, 
       pingInterval: 5000,
       config: {
-        // STUN is required for HTTPS to allow Local IP gathering.
-        // Google's public STUN server is reliable.
-        iceServers: [
+        iceServers: lanMode ? [] : [
           { urls: 'stun:stun.l.google.com:19302' },
         ],
         sdpSemantics: 'unified-plan',
         iceCandidatePoolSize: 2
       },
-    });
+    };
+
+    const peer = new Peer(fullId, peerConfig);
 
     peer.on('open', (id: string) => {
       console.log('Peer connection open. ID:', id);
@@ -150,7 +157,7 @@ export default function App() {
         peerRef.current.destroy();
       }
     };
-  }, [myId, resetKey]);
+  }, [myId, resetKey, lanMode]);
 
   // Reset Network Handler
   const handleResetNetwork = () => {
@@ -160,6 +167,18 @@ export default function App() {
     setIceState('new');
     setError(null);
     setResetKey(prev => prev + 1); // Trigger re-init
+  };
+
+  // Toggle LAN Mode
+  const toggleLanMode = () => {
+    setLanMode(prev => !prev);
+    // Disconnect current calls when switching modes
+    if (connRef.current) connRef.current.close();
+    setConnectedPeer(null);
+    setIsConnecting(false);
+    // resetKey isn't strictly needed as lanMode change triggers useEffect, but safe to reset state
+    setConnectionInput('');
+    setError(null);
   };
 
   // Logic to connect to a specific ID
@@ -592,6 +611,8 @@ export default function App() {
           setIceState('new');
         }}
         onReset={handleResetNetwork}
+        lanMode={lanMode}
+        onToggleLanMode={toggleLanMode}
       />
 
       {error && (
@@ -601,12 +622,11 @@ export default function App() {
              <p className="font-medium">{error}</p>
              {(error.includes("timed out") || error.includes("Failed to establish")) && (
                 <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
-                  <p className="font-semibold mb-1">Hotspot Connection Guide:</p>
+                  <p className="font-semibold mb-1">Troubleshooting Tips:</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
-                    <li><strong>Host Phone:</strong> Turn OFF Mobile Data while waiting for connection.</li>
-                    <li><strong>Client Laptop:</strong> Ensure you are connected to the Phone's Wi-Fi.</li>
-                    <li>Try connecting in the reverse direction (Enter Laptop ID into Phone).</li>
-                    <li>Disable VPNs on both devices.</li>
+                    <li><strong>Try enabling "LAN Mode"</strong> (toggle at top right) on BOTH devices.</li>
+                    <li>If using a Mobile Hotspot, turn OFF Mobile Data on the host phone temporarily.</li>
+                    <li>Ensure no VPN is active.</li>
                   </ul>
                 </div>
              )}
@@ -668,10 +688,10 @@ export default function App() {
                  <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                    <div className="flex items-center gap-2 text-blue-300 text-xs mb-1">
                      <Loader2 size={12} className="animate-spin" />
-                     <span>Negotiating Local Path...</span>
+                     <span>Negotiating {lanMode ? 'Local' : 'Network'} Path...</span>
                    </div>
                    <p className="text-[10px] text-slate-400">
-                     Checking LAN/Wi-Fi routes. If this hangs, try disabling Mobile Data on the host phone.
+                     {lanMode ? 'Scanning local Wi-Fi. Ensure both devices are on the same network.' : 'Negotiating connection. If stuck, try enabling LAN Mode.'}
                    </p>
                  </div>
               )}

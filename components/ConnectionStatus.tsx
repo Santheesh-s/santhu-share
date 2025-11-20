@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wifi, User, Copy, Share2, Check, RefreshCw } from 'lucide-react';
+import { Wifi, User, Copy, Share2, Check, RefreshCw, Globe, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button } from './Button';
 
 interface ConnectionStatusProps {
@@ -9,6 +9,8 @@ interface ConnectionStatusProps {
   connectedPeerName?: string;
   onDisconnect: () => void;
   onReset?: () => void;
+  lanMode?: boolean;
+  onToggleLanMode?: () => void;
 }
 
 export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
@@ -17,7 +19,9 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   connectedTo,
   connectedPeerName,
   onDisconnect,
-  onReset
+  onReset,
+  lanMode,
+  onToggleLanMode
 }) => {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
@@ -85,18 +89,28 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         </div>
 
         {/* Connection Indicator */}
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-700">
             <div className={`h-3 w-3 rounded-full animate-pulse ${connectedTo ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             <span className="text-sm font-medium text-slate-300">
               {connectedTo ? 'Connected via LAN/P2P' : 'Waiting for connection...'}
             </span>
           </div>
-          {onReset && !connectedTo && (
-             <button onClick={onReset} className="text-[10px] text-slate-500 flex items-center gap-1 hover:text-blue-400 transition-colors">
-               <RefreshCw size={10} /> Reset Network
-             </button>
-          )}
+          
+          <div className="flex gap-4 items-center">
+             {onReset && !connectedTo && (
+                <button onClick={onReset} className="text-[10px] text-slate-500 flex items-center gap-1 hover:text-blue-400 transition-colors">
+                  <RefreshCw size={10} /> Reset Network
+                </button>
+             )}
+             
+             {onToggleLanMode && !connectedTo && (
+                <button onClick={onToggleLanMode} className={`text-[10px] flex items-center gap-1 transition-colors ${lanMode ? 'text-emerald-400 font-semibold' : 'text-slate-500 hover:text-slate-300'}`} title="Enable if using Mobile Hotspot">
+                  {lanMode ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  <span>{lanMode ? 'LAN Mode' : 'Standard Mode'}</span>
+                </button>
+             )}
+          </div>
         </div>
 
         {/* Connected Peer Info */}
