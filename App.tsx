@@ -31,6 +31,7 @@ export default function App() {
   const peerRef = useRef<any>(null);
   const connRef = useRef<any>(null);
   const connectingToRef = useRef<string | null>(null); // Lock to prevent duplicate attempts
+  const connectionTimeoutRef = useRef<any>(null);
   const incomingFilesRef = useRef<{ [key: string]: { meta: FileMeta; chunks: Blob[]; receivedSize: number; startTime: number; lastUpdate: number; bytesSinceLastUpdate: number } }>({});
   const outgoingFilesRef = useRef<{ [key: string]: { startTime: number; lastUpdate: number; bytesSent: number; bytesSinceLastUpdate: number } }>({});
   const handshakeIntervalRef = useRef<any>(null);
@@ -60,14 +61,15 @@ export default function App() {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
-      debug: 2, // Level 2 logs warnings/errors
+      debug: 2, // Level 2 for more insights
+      pingInterval: 5000, // Keep mobile connections alive
       config: {
-        // Minimal STUN config to prioritize Local LAN candidates.
-        // Too many STUN servers can confuse Hotspot connections.
+        // Standard Google STUN is most reliable.
+        // We avoid adding too many servers to prevent timeouts.
         iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun.l.google.com:19302' }
         ],
-        iceCandidatePoolSize: 10,
+        sdpSemantics: 'unified-plan'
       },
     });
 
@@ -77,43 +79,70 @@ export default function App() {
       setError(null);
     });
 
+    peer.on('disconnected', () => {
+      console.log("Disconnected from signaling server. P2P connections may still persist.");
+      setIsPeerReady(false);
+      
+      // Auto-reconnect to signaling server if connection drops
+      if (peerRef.current && !peerRef.current.destroyed) {
+        setTimeout(() => {
+          if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
+            console.log("Attempting to reconnect to signaling server...");
+            peerRef.current.reconnect();
+          }
+        }, 3000);
+      }
+    });
+
     peer.on('connection', (conn: any) => {
-      // If we are already connected or connecting to someone else, we might want to reject
-      // But for simplicity, we accept new connections which override old ones
       console.log("Incoming connection from:", conn.peer);
       
       if (connectingToRef.current && connectingToRef.current !== conn.peer) {
         console.warn("Received connection while attempting another. Switching to incoming.");
+        // Cancel outgoing attempt
+        if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+        setIsConnecting(false);
+        connectingToRef.current = null;
       }
       
       handleConnection(conn);
     });
 
     peer.on('error', (err: any) => {
-      console.error("Peer Error:", err);
-      setIsConnecting(false);
-      connectingToRef.current = null; 
-      
-      if (err.type === 'peer-unavailable') {
-        setError(`Device ID not found. Check the ID and ensure the other device is online.`);
-      } else if (err.type === 'network') {
-        setError('Network error. Please check your internet connection.');
-      } else if (err.type === 'unavailable-id') {
+      console.warn("Peer Error:", err.type, err.message);
+
+      // If we are connecting, handle specific errors to cancel the loading state
+      if (isConnecting) {
+        if (err.type === 'peer-unavailable') {
+          if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+          setIsConnecting(false);
+          connectingToRef.current = null;
+          setError(`Device ID not found. Ensure the other device is open and connected to internet.`);
+          return;
+        }
+      }
+
+      // Ignore background network noise
+      if (err.type === 'network' || err.message === 'Lost connection to server.') {
+        if (isConnecting) {
+          setError('Signaling connection lost. Please check internet.');
+          setIsConnecting(false);
+          connectingToRef.current = null;
+        }
+        return;
+      }
+
+      if (err.type === 'unavailable-id') {
          setError('ID Collision. Refresh to get a new ID.');
       } else if (err.type === 'browser-incompatible') {
         setError('Browser incompatible. Please use Chrome, Firefox or Safari.');
-      } else if (err.type === 'server-error') {
-        setError('Signaling server error. Please retry later.');
-      } else {
-        setError(`Connection error: ${err.type || err.message || 'Unknown'}`);
       }
     });
 
     peerRef.current = peer;
 
     return () => {
-      // Cleanup not performed on unmount in StrictMode to avoid ID thrashing
-      // Real cleanup happens on window close or refresh
+      // Cleanup handled by window unload usually
     };
   }, [myId]);
 
@@ -124,25 +153,19 @@ export default function App() {
     const formattedId = targetShortId.toUpperCase();
     const targetFullId = `${APP_PREFIX}${formattedId}`;
 
-    // 1. Check Self-Connection
     if (formattedId === myId) {
       setError("You cannot connect to yourself.");
       return;
     }
 
-    // 2. Check Internet
-    if (!isOnline) {
-      setError("Internet connection required to find the other device.");
-      return;
+    if (peerRef.current.disconnected) {
+       console.log("Peer disconnected, reconnecting before call...");
+       peerRef.current.reconnect();
     }
 
-    // 3. Check Duplicate Connection Attempts
-    if (connectingToRef.current === targetFullId) {
-      console.log("Connection already in progress to:", targetFullId);
-      return;
-    }
+    if (connectingToRef.current === targetFullId) return;
 
-    // Close existing connection if any
+    // Cleanup previous
     if (connRef.current) {
       connRef.current.close();
     }
@@ -150,44 +173,41 @@ export default function App() {
     setIsConnecting(true);
     setIceState('checking');
     setError(null);
-    connectingToRef.current = targetFullId; // Lock
+    connectingToRef.current = targetFullId;
     
     console.log("Attempting to connect to:", targetFullId);
 
-    // 4. Connect
     try {
-      const conn = peerRef.current.connect(targetFullId, { 
-        reliable: true, // Ensures ordered delivery (TCP-like)
-        // serialization: 'binary' // Default is binary, perfect for files
-      });
+      // CRITICAL FIX: Removed 'reliable: true'. 
+      // Reliable mode often fails on mobile hotspots/strict NATs.
+      // Browser default (ordered) is sufficient and more robust.
+      const conn = peerRef.current.connect(targetFullId);
       
-      // 5. Set Timeout (Increased for slow Hotspots)
-      const timeoutTimer = setTimeout(() => {
+      connectionTimeoutRef.current = setTimeout(() => {
         if (!conn.open) {
           console.warn("Connection timed out for:", targetFullId);
           conn.close();
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError("Connection timed out. Try connecting from the other device instead.");
+          setError("Connection timed out. Firewalls might be blocking the direct path.");
         }
       }, 30000); 
 
       conn.on('open', () => {
-        clearTimeout(timeoutTimer);
-        connectingToRef.current = null; // Release lock
+        if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+        connectingToRef.current = null;
         handleConnection(conn);
       });
 
       conn.on('error', (err: any) => {
-        clearTimeout(timeoutTimer);
-        console.error("Connection attempt error:", err);
+        console.error("Connection error:", err);
+        if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
-        setError("Failed to connect to peer.");
+        setError("Failed to establish connection.");
       });
 
       conn.on('close', () => {
-        clearTimeout(timeoutTimer);
         if (connectingToRef.current === targetFullId) {
              setIsConnecting(false);
              connectingToRef.current = null;
@@ -222,23 +242,17 @@ export default function App() {
 
 
   const handleConnection = (conn: any) => {
-    // Clean up old connection if different
     if (connRef.current && connRef.current !== conn) {
       connRef.current.close();
     }
-
     connRef.current = conn;
 
-    // Monitor ICE State for debugging
+    // Monitor ICE State
     if (conn.peerConnection) {
       conn.peerConnection.oniceconnectionstatechange = () => {
         const state = conn.peerConnection.iceConnectionState;
         console.log(`ICE State (${conn.peer}):`, state);
         setIceState(state);
-        if (state === 'disconnected' || state === 'failed') {
-           // Optional: Attempt ICE restart?
-           // conn.peerConnection.restartIce();
-        }
       };
     }
 
@@ -249,31 +263,29 @@ export default function App() {
       setError(null);
       setIceState('connected');
       
-      // Handshake Loop: Send until we get a response
       if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
       
+      // Aggressive Handshake
       handshakeIntervalRef.current = setInterval(() => {
         if (conn.open) {
-           console.log("Sending Handshake...");
            try {
              conn.send({
                type: MessageType.HANDSHAKE,
                payload: { name: displayName }
              });
            } catch (e) {
-             console.error("Failed to send handshake:", e);
+             console.error("Handshake send error:", e);
            }
         }
-      }, 1000);
+      }, 500);
       
-      // Heartbeat to keep NAT mapping alive
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = setInterval(() => {
         if(conn.open) {
-           // PeerJS internal heartbeat is usually enough, but explicit data helps
-           // conn.send({ type: 'PING' }); 
+           // Keep NAT alive
+           try { conn.send({ type: 'PING' }); } catch(e) {}
         }
-      }, 5000);
+      }, 4000);
     };
 
     if (conn.open) {
@@ -282,7 +294,10 @@ export default function App() {
         conn.on('open', finalize);
     }
 
-    conn.on('data', (data: PeerMessage) => {
+    conn.on('data', (data: PeerMessage | any) => {
+      // Handle PING or Data
+      if (data?.type === 'PING') return;
+      
       handleData(data);
     });
 
@@ -304,7 +319,6 @@ export default function App() {
   };
 
   const handleData = (message: PeerMessage) => {
-    // Stop handshake if we receive valid data
     if (handshakeIntervalRef.current) {
         clearInterval(handshakeIntervalRef.current);
         handshakeIntervalRef.current = null;
@@ -347,13 +361,11 @@ export default function App() {
         const fileContext = incomingFilesRef.current[fileId];
         
         if (fileContext) {
-          // chunk is an ArrayBuffer
           fileContext.chunks.push(new Blob([chunk]));
           fileContext.receivedSize += chunk.byteLength;
           fileContext.bytesSinceLastUpdate += chunk.byteLength;
 
           const now = Date.now();
-          // Update UI every 500ms
           if (now - fileContext.lastUpdate > 500 || fileContext.receivedSize >= fileContext.meta.size) {
             const progress = Math.min(100, (fileContext.receivedSize / fileContext.meta.size) * 100);
             
@@ -380,7 +392,6 @@ export default function App() {
             a.href = url;
             a.download = fileContext.meta.name;
             a.click();
-            // clean up after a delay
             setTimeout(() => URL.revokeObjectURL(url), 60000);
 
             setTransfers(prev => prev.map(t => {
@@ -444,7 +455,7 @@ export default function App() {
         return;
       }
 
-      // Backpressure Control: Don't flood the buffer
+      // Basic Backpressure
       if (connRef.current.dataChannel?.bufferedAmount > 10 * 1024 * 1024) {
         setTimeout(sendNextChunk, 50);
         return;
@@ -468,7 +479,6 @@ export default function App() {
             }
           });
         } catch (err) {
-          console.error("Send error", err);
           setTransfers(prev => prev.map(t => t.id === fileId ? { ...t, status: 'error' } : t));
           return;
         }
@@ -500,7 +510,6 @@ export default function App() {
         }
 
         if (offset < file.size) {
-          // Small delay to yield to event loop for UI updates
           if (offset % (CHUNK_SIZE * 5) === 0) {
              setTimeout(sendNextChunk, 0);
           } else {
@@ -547,7 +556,6 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4 flex-wrap justify-center">
-          {/* Online/Offline Indicator */}
           <div className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full border ${isOnline ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
             {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
             <span className="hidden sm:inline">{isOnline ? 'Signaling Server Online' : 'Offline'}</span>
@@ -581,13 +589,14 @@ export default function App() {
           <AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
           <div className="flex-1">
              <p className="font-medium">{error}</p>
-             {error.includes("Try connecting from the other device") && (
+             {(error.includes("timed out") || error.includes("Failed to establish")) && (
                 <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
-                  <p className="font-semibold mb-1">Troubleshooting Tips:</p>
+                  <p className="font-semibold mb-1">Hotspot Connection Guide:</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
-                    <li>Try entering Device A's ID into Device B instead.</li>
-                    <li>If using a <strong>Mobile Hotspot</strong>, turn OFF "Mobile Data" on the phone. This forces devices to use the local Wi-Fi path.</li>
-                    <li>Ensure no VPN is active on either device.</li>
+                    <li><strong>Host Phone:</strong> Turn OFF Mobile Data while waiting for connection.</li>
+                    <li><strong>Client Laptop:</strong> Ensure you are connected to the Phone's Wi-Fi.</li>
+                    <li>Try connecting in the reverse direction (Enter Laptop ID into Phone).</li>
+                    <li>Disable VPNs on both devices.</li>
                   </ul>
                 </div>
              )}
@@ -631,7 +640,7 @@ export default function App() {
                 <Button 
                   type="submit" 
                   fullWidth 
-                  disabled={!connectionInput || connectionInput.length < 4 || !isOnline || isConnecting}
+                  disabled={!connectionInput || connectionInput.length < 4 || (!isOnline && !peerRef.current?.open) || isConnecting}
                   className="flex items-center justify-center gap-2"
                 >
                   {isConnecting ? (
@@ -649,17 +658,17 @@ export default function App() {
                  <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                    <div className="flex items-center gap-2 text-blue-300 text-xs mb-1">
                      <Loader2 size={12} className="animate-spin" />
-                     <span>Negotiating P2P path...</span>
+                     <span>Negotiating Local Path...</span>
                    </div>
                    <p className="text-[10px] text-slate-400">
-                     Finding the best local route. If this takes long, try disabling Mobile Data.
+                     Checking LAN/Wi-Fi routes. If this hangs, try disabling Mobile Data on the host phone.
                    </p>
                  </div>
               )}
               
               {isConnecting && iceState === 'disconnected' && (
                 <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 text-xs text-amber-300">
-                  Connection unstable. Retrying...
+                  Direct path failed. Retrying...
                 </div>
               )}
 
