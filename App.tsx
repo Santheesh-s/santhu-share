@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, Info, Shield, Zap, Wifi, WifiOff, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Upload, Info, Shield, Zap, Wifi, WifiOff, Loader2, AlertTriangle } from 'lucide-react';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { FileTransferItem } from './components/FileTransferItem';
 import { Button } from './components/Button';
@@ -26,6 +26,9 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isPeerReady, setIsPeerReady] = useState(false);
   const [iceState, setIceState] = useState<string>('new');
+  
+  // Used to force re-initialization of the Peer instance
+  const [resetKey, setResetKey] = useState(0);
 
   // Refs for non-rendering state and performance
   const peerRef = useRef<any>(null);
@@ -63,23 +66,30 @@ export default function App() {
 
   // Initialize Peer
   useEffect(() => {
-    if (peerRef.current) return; // Prevent double initialization
+    // Clean up previous instance if it exists (for resetKey changes)
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
 
     const fullId = `${APP_PREFIX}${myId}`;
     
-    console.log(`Initializing Peer with ID: ${fullId}`);
+    console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey})`);
 
     const peer = new Peer(fullId, {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
-      debug: 1, // Level 1 (Errors only) to reduce noise
-      pingInterval: 5000, // Keep mobile connections alive
+      debug: 1, 
+      pingInterval: 5000,
       config: {
-        // Empty iceServers forces WebRTC to use Local Network (Host candidates) ONLY.
-        // This prevents the "Hotspot/Public IP" confusion that blocks connections.
-        iceServers: [], 
-        sdpSemantics: 'unified-plan'
+        // STUN is required for HTTPS to allow Local IP gathering.
+        // Google's public STUN server is reliable.
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+        ],
+        sdpSemantics: 'unified-plan',
+        iceCandidatePoolSize: 2
       },
     });
 
@@ -92,19 +102,16 @@ export default function App() {
     peer.on('disconnected', () => {
       console.log("Disconnected from signaling server. P2P connections may still persist.");
       setIsPeerReady(false);
-      
-      // Immediate auto-reconnect attempt
-      if (peerRef.current && !peerRef.current.destroyed) {
-        peerRef.current.reconnect();
-      }
+      // Immediate auto-reconnect attempt handled by library or manual trigger if needed
     });
 
     peer.on('connection', (conn: any) => {
       console.log("Incoming connection from:", conn.peer);
       
-      if (connectingToRef.current && connectingToRef.current !== conn.peer) {
-        console.warn("Received connection while attempting another. Switching to incoming.");
-        // Cancel outgoing attempt
+      // Glare handling: If we are trying to connect to someone, and they connect to us
+      // roughly at the same time, prefer the incoming connection to avoid deadlock.
+      if (connectingToRef.current) {
+        console.warn(`Race condition detected. Dropping outgoing attempt to ${connectingToRef.current} in favor of incoming ${conn.peer}`);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
@@ -114,44 +121,46 @@ export default function App() {
     });
 
     peer.on('error', (err: any) => {
-      // Suppress benign network errors unless we are strictly connecting
+      // Suppress benign network errors
       if (err.type === 'network' || err.message === 'Lost connection to server.') {
-        if (isConnecting) {
-          console.warn("Signaling connection lost during handshake.");
-          setError('Signaling connection lost. Please check internet.');
-          setIsConnecting(false);
-          connectingToRef.current = null;
-        }
-        // If we are idle, silent reconnect handles this via 'disconnected' event
         return;
       }
 
       console.warn("Peer Error:", err.type, err.message);
 
-      // If we are connecting, handle specific errors to cancel the loading state
       if (isConnecting) {
         if (err.type === 'peer-unavailable') {
           if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError(`Device ID not found. Ensure the other device is open and connected to internet.`);
+          setError(`Device ID not found. Ensure the other device is open and connected.`);
           return;
         }
       }
 
       if (err.type === 'unavailable-id') {
          setError('ID Collision. Refresh to get a new ID.');
-      } else if (err.type === 'browser-incompatible') {
-        setError('Browser incompatible. Please use Chrome, Firefox or Safari.');
       }
     });
 
     peerRef.current = peer;
 
     return () => {
-      // Cleanup handled by window unload usually
+      if (peerRef.current) {
+        peerRef.current.destroy();
+      }
     };
-  }, [myId]);
+  }, [myId, resetKey]);
+
+  // Reset Network Handler
+  const handleResetNetwork = () => {
+    if (connRef.current) connRef.current.close();
+    setConnectedPeer(null);
+    setIsConnecting(false);
+    setIceState('new');
+    setError(null);
+    setResetKey(prev => prev + 1); // Trigger re-init
+  };
 
   // Logic to connect to a specific ID
   const connectToId = (targetShortId: string) => {
@@ -166,7 +175,7 @@ export default function App() {
     }
 
     if (peerRef.current.disconnected) {
-       console.log("Peer disconnected, reconnecting before call...");
+       console.log("Peer disconnected, attempting reconnect before call...");
        peerRef.current.reconnect();
     }
 
@@ -185,9 +194,8 @@ export default function App() {
     console.log("Attempting to connect to:", targetFullId);
 
     try {
-      // CRITICAL CONFIG: reliable: false for mobile hotspots
       const conn = peerRef.current.connect(targetFullId, {
-        reliable: false
+        reliable: false // UDP is better for mobile/hotspots
       });
       
       connectionTimeoutRef.current = setTimeout(() => {
@@ -198,7 +206,7 @@ export default function App() {
           connectingToRef.current = null;
           setError("Connection timed out. Firewalls might be blocking the direct path.");
         }
-      }, 30000); 
+      }, 45000); // 45s timeout
 
       conn.on('open', () => {
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
@@ -211,7 +219,6 @@ export default function App() {
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
-        setError("Failed to establish connection.");
       });
 
       conn.on('close', () => {
@@ -289,7 +296,6 @@ export default function App() {
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = setInterval(() => {
         if(conn.open) {
-           // Keep NAT alive
            try { conn.send({ type: 'PING' }); } catch(e) {}
         }
       }, 4000);
@@ -302,9 +308,7 @@ export default function App() {
     }
 
     conn.on('data', (data: PeerMessage | any) => {
-      // Handle PING or Data
       if (data?.type === 'PING') return;
-      
       handleData(data);
     });
 
@@ -462,7 +466,6 @@ export default function App() {
         return;
       }
 
-      // Basic Backpressure
       if (connRef.current.dataChannel?.bufferedAmount > 10 * 1024 * 1024) {
         setTimeout(sendNextChunk, 50);
         return;
@@ -583,12 +586,12 @@ export default function App() {
         connectedPeerName={connectedPeer?.name}
         onDisconnect={() => {
           if (connRef.current) connRef.current.close();
-          if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
           setConnectedPeer(null);
           setTransfers([]);
           setConnectionInput('');
           setIceState('new');
         }}
+        onReset={handleResetNetwork}
       />
 
       {error && (
