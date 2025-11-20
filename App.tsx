@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, Info, Shield, Zap, Wifi, WifiOff, Loader2, AlertTriangle } from 'lucide-react';
+import { Upload, Info, Shield, Zap, Wifi, WifiOff, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { FileTransferItem } from './components/FileTransferItem';
 import { Button } from './components/Button';
@@ -25,6 +25,7 @@ export default function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isPeerReady, setIsPeerReady] = useState(false);
+  const [iceState, setIceState] = useState<string>('new');
 
   // Refs for non-rendering state and performance
   const peerRef = useRef<any>(null);
@@ -32,6 +33,7 @@ export default function App() {
   const connectingToRef = useRef<string | null>(null); // Lock to prevent duplicate attempts
   const incomingFilesRef = useRef<{ [key: string]: { meta: FileMeta; chunks: Blob[]; receivedSize: number; startTime: number; lastUpdate: number; bytesSinceLastUpdate: number } }>({});
   const outgoingFilesRef = useRef<{ [key: string]: { startTime: number; lastUpdate: number; bytesSent: number; bytesSinceLastUpdate: number } }>({});
+  const handshakeIntervalRef = useRef<any>(null);
 
   // Network status listeners
   useEffect(() => {
@@ -59,16 +61,13 @@ export default function App() {
       secure: true,
       debug: 1,
       config: {
+        // Minimized, high-reliability list to prevent timeout during candidate gathering
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:stun3.l.google.com:19302' },
           { urls: 'stun:stun4.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' },
-          { urls: 'stun:stun.stunprotocol.org:3478' },
-          { urls: 'stun:stun.voipstunt.com' },
-          { urls: 'stun:stun.xten.com' },
         ],
         sdpSemantics: 'unified-plan'
       },
@@ -139,6 +138,7 @@ export default function App() {
     }
 
     setIsConnecting(true);
+    setIceState('checking');
     setError(null);
     connectingToRef.current = targetFullId; // Lock
     
@@ -147,21 +147,19 @@ export default function App() {
     // 4. Connect
     try {
       const conn = peerRef.current.connect(targetFullId, { 
-        reliable: true,
         serialization: 'json'
       });
       
       // 5. Set Timeout
-      // Increased to 60s because P2P traversal can be slow
       const timeoutTimer = setTimeout(() => {
         if (!conn.open) {
           console.warn("Connection timed out for:", targetFullId);
           conn.close();
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError("Connection timed out. Devices might be behind strict firewalls. Try sharing the link again.");
+          setError("Connection timed out. Try connecting from the other device instead.");
         }
-      }, 60000); 
+      }, 45000); 
 
       conn.on('open', () => {
         clearTimeout(timeoutTimer);
@@ -202,17 +200,12 @@ export default function App() {
     const connectTo = params.get('connect');
 
     if (connectTo && connectTo.length === 4) {
-      // Check if we are already connecting to this ID to avoid double-fire
       const target = `${APP_PREFIX}${connectTo.toUpperCase()}`;
       if (connectingToRef.current === target) return;
 
       console.log("Auto-connecting to ID from URL:", connectTo);
       setConnectionInput(connectTo.toUpperCase());
-      
-      // Clear URL
       window.history.replaceState({}, '', window.location.pathname);
-      
-      // Connect
       connectToId(connectTo);
     }
   }, [isPeerReady, connectedPeer, isConnecting]);
@@ -226,11 +219,43 @@ export default function App() {
 
     connRef.current = conn;
 
-    // If we are receiving the connection, 'open' might have already fired
+    // Monitor ICE State for debugging
+    if (conn.peerConnection) {
+      conn.peerConnection.oniceconnectionstatechange = () => {
+        const state = conn.peerConnection.iceConnectionState;
+        console.log(`ICE State (${conn.peer}):`, state);
+        setIceState(state);
+        if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+           // Handle disconnect
+        }
+      };
+    }
+
+    const finalize = () => {
+      console.log("Connection established with:", conn.peer);
+      setIsConnecting(false);
+      connectingToRef.current = null;
+      setError(null);
+      
+      // Aggressive Handshake: Send until we get a response or user disconnects
+      // This ensures the message isn't lost in the initial connection instability
+      if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+      
+      handshakeIntervalRef.current = setInterval(() => {
+        if (conn.open) {
+           console.log("Sending Handshake...");
+           conn.send({
+             type: MessageType.HANDSHAKE,
+             payload: { name: displayName }
+           });
+        }
+      }, 500);
+    };
+
     if (conn.open) {
-        finalizeConnection(conn);
+        finalize();
     } else {
-        conn.on('open', () => finalizeConnection(conn));
+        conn.on('open', finalize);
     }
 
     conn.on('data', (data: PeerMessage) => {
@@ -239,24 +264,13 @@ export default function App() {
 
     conn.on('close', () => {
       console.log("Connection closed");
+      if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
       setConnectedPeer(null);
       connRef.current = null;
       setIsConnecting(false);
       setError("Peer disconnected");
+      setIceState('closed');
       setTransfers(prev => prev.map(t => t.status === 'transferring' ? { ...t, status: 'error' } : t));
-    });
-  };
-
-  const finalizeConnection = (conn: any) => {
-    console.log("Connection established with:", conn.peer);
-    setIsConnecting(false);
-    connectingToRef.current = null;
-    setError(null);
-    
-    // Send handshake
-    conn.send({
-      type: MessageType.HANDSHAKE,
-      payload: { name: displayName }
     });
   };
 
@@ -266,6 +280,12 @@ export default function App() {
   };
 
   const handleData = (message: PeerMessage) => {
+    // If we receive ANY data, the connection is healthy. Stop the handshake loop.
+    if (handshakeIntervalRef.current) {
+        clearInterval(handshakeIntervalRef.current);
+        handshakeIntervalRef.current = null;
+    }
+
     switch (message.type) {
       case MessageType.HANDSHAKE:
         setConnectedPeer({
@@ -273,6 +293,8 @@ export default function App() {
           name: message.payload.name
         });
         setError(null);
+        // If we received a handshake, we should reply once to confirm (if we haven't already sent data)
+        // but the interval loop above handles the sending part.
         break;
 
       case MessageType.FILE_META:
@@ -306,11 +328,9 @@ export default function App() {
           fileContext.bytesSinceLastUpdate += chunk.byteLength;
 
           const now = Date.now();
-          // Update UI roughly every 500ms or on completion
           if (now - fileContext.lastUpdate > 500 || fileContext.receivedSize >= fileContext.meta.size) {
             const progress = Math.min(100, (fileContext.receivedSize / fileContext.meta.size) * 100);
             
-            // Calculate speed
             const timeDiff = (now - fileContext.lastUpdate) / 1000;
             const speedBytes = fileContext.bytesSinceLastUpdate / (timeDiff || 0.5);
             const speedStr = formatBytes(speedBytes) + '/s';
@@ -326,7 +346,6 @@ export default function App() {
             }));
           }
 
-          // Check if complete
           if (fileContext.receivedSize >= fileContext.meta.size) {
             const blob = new Blob(fileContext.chunks, { type: fileContext.meta.type });
             
@@ -356,7 +375,6 @@ export default function App() {
 
     const fileId = Math.random().toString(36).substring(7);
     
-    // Initialize outgoing context
     outgoingFilesRef.current[fileId] = {
       startTime: Date.now(),
       lastUpdate: Date.now(),
@@ -388,13 +406,11 @@ export default function App() {
     const reader = new FileReader();
 
     const sendNextChunk = () => {
-      // Check if connection is still open
       if (!connRef.current || !connRef.current.open) {
         setTransfers(prev => prev.map(t => t.id === fileId ? { ...t, status: 'error' } : t));
         return;
       }
 
-      // Backpressure: Don't overload buffer
       if (connRef.current.dataChannel?.bufferedAmount > 15 * 1024 * 1024) {
         setTimeout(sendNextChunk, 100);
         return;
@@ -425,7 +441,6 @@ export default function App() {
 
         offset += chunk.byteLength;
         
-        // Update metrics
         const ctx = outgoingFilesRef.current[fileId];
         if (ctx) {
           ctx.bytesSent = offset;
@@ -451,7 +466,6 @@ export default function App() {
         }
 
         if (offset < file.size) {
-          // Continue loop with minimal delay
           setTimeout(sendNextChunk, 0); 
         } else {
            setTransfers(prev => prev.map(t => {
@@ -515,16 +529,25 @@ export default function App() {
         connectedPeerName={connectedPeer?.name}
         onDisconnect={() => {
           if (connRef.current) connRef.current.close();
+          if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
           setConnectedPeer(null);
           setTransfers([]);
           setConnectionInput('');
+          setIceState('new');
         }}
       />
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-xl mb-8 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <AlertTriangle size={20} />
-          <span>{error}</span>
+        <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-xl mb-8 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
+          <div>
+             <p className="font-medium">{error}</p>
+             {error.includes("Try connecting from the other device") && (
+                <p className="text-xs mt-1 opacity-80">
+                  Firewalls can be one-way. If Device A cannot connect to Device B, try entering Device A's ID into Device B.
+                </p>
+             )}
+          </div>
         </div>
       )}
 
@@ -555,7 +578,7 @@ export default function App() {
                     type="text"
                     value={connectionInput}
                     onChange={(e) => setConnectionInput(e.target.value.toUpperCase())}
-                    placeholder="e.g. X9Y2"
+                    placeholder="E.G. X9Y2"
                     disabled={isConnecting}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg uppercase tracking-wider disabled:opacity-50"
                     maxLength={4}
@@ -577,6 +600,19 @@ export default function App() {
                   )}
                 </Button>
               </form>
+              
+              {isConnecting && iceState === 'checking' && (
+                 <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                   <div className="flex items-center gap-2 text-blue-300 text-xs mb-1">
+                     <Loader2 size={12} className="animate-spin" />
+                     <span>Negotiating P2P path...</span>
+                   </div>
+                   <p className="text-[10px] text-slate-400">
+                     This may take up to 30 seconds if you are on different Wi-Fi networks.
+                   </p>
+                 </div>
+              )}
+
               <div className="mt-6 pt-6 border-t border-slate-700/50">
                 <div className="flex items-start gap-3 text-xs text-slate-500">
                   <Info size={16} className="flex-shrink-0 mt-0.5" />
