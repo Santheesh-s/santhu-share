@@ -49,6 +49,18 @@ export default function App() {
     };
   }, []);
 
+  // Reconnect on visibility change (mobile tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && peerRef.current?.disconnected) {
+        console.log("Tab visible, reconnecting signaling...");
+        peerRef.current.reconnect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   // Initialize Peer
   useEffect(() => {
     if (peerRef.current) return; // Prevent double initialization
@@ -61,14 +73,12 @@ export default function App() {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
-      debug: 2, // Level 2 for more insights
+      debug: 1, // Level 1 (Errors only) to reduce noise
       pingInterval: 5000, // Keep mobile connections alive
       config: {
-        // Standard Google STUN is most reliable.
-        // We avoid adding too many servers to prevent timeouts.
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ],
+        // Empty iceServers forces WebRTC to use Local Network (Host candidates) ONLY.
+        // This prevents the "Hotspot/Public IP" confusion that blocks connections.
+        iceServers: [], 
         sdpSemantics: 'unified-plan'
       },
     });
@@ -83,14 +93,9 @@ export default function App() {
       console.log("Disconnected from signaling server. P2P connections may still persist.");
       setIsPeerReady(false);
       
-      // Auto-reconnect to signaling server if connection drops
+      // Immediate auto-reconnect attempt
       if (peerRef.current && !peerRef.current.destroyed) {
-        setTimeout(() => {
-          if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
-            console.log("Attempting to reconnect to signaling server...");
-            peerRef.current.reconnect();
-          }
-        }, 3000);
+        peerRef.current.reconnect();
       }
     });
 
@@ -109,6 +114,18 @@ export default function App() {
     });
 
     peer.on('error', (err: any) => {
+      // Suppress benign network errors unless we are strictly connecting
+      if (err.type === 'network' || err.message === 'Lost connection to server.') {
+        if (isConnecting) {
+          console.warn("Signaling connection lost during handshake.");
+          setError('Signaling connection lost. Please check internet.');
+          setIsConnecting(false);
+          connectingToRef.current = null;
+        }
+        // If we are idle, silent reconnect handles this via 'disconnected' event
+        return;
+      }
+
       console.warn("Peer Error:", err.type, err.message);
 
       // If we are connecting, handle specific errors to cancel the loading state
@@ -120,16 +137,6 @@ export default function App() {
           setError(`Device ID not found. Ensure the other device is open and connected to internet.`);
           return;
         }
-      }
-
-      // Ignore background network noise
-      if (err.type === 'network' || err.message === 'Lost connection to server.') {
-        if (isConnecting) {
-          setError('Signaling connection lost. Please check internet.');
-          setIsConnecting(false);
-          connectingToRef.current = null;
-        }
-        return;
       }
 
       if (err.type === 'unavailable-id') {
@@ -178,10 +185,10 @@ export default function App() {
     console.log("Attempting to connect to:", targetFullId);
 
     try {
-      // CRITICAL FIX: Removed 'reliable: true'. 
-      // Reliable mode often fails on mobile hotspots/strict NATs.
-      // Browser default (ordered) is sufficient and more robust.
-      const conn = peerRef.current.connect(targetFullId);
+      // CRITICAL CONFIG: reliable: false for mobile hotspots
+      const conn = peerRef.current.connect(targetFullId, {
+        reliable: false
+      });
       
       connectionTimeoutRef.current = setTimeout(() => {
         if (!conn.open) {
