@@ -22,6 +22,7 @@ export default function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isPeerReady, setIsPeerReady] = useState(false);
 
   // Refs for non-rendering state and performance
   const peerRef = useRef<any>(null);
@@ -39,15 +40,6 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
-
-  // Check for URL param to auto-fill ID
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const connectTo = params.get('connect');
-    if (connectTo && connectTo.length === 4) {
-      setConnectionInput(connectTo.toUpperCase());
-    }
   }, []);
 
   // Initialize Peer
@@ -76,6 +68,7 @@ export default function App() {
 
     peer.on('open', (id: string) => {
       console.log('My Peer ID is: ' + id);
+      setIsPeerReady(true);
       setError(null);
     });
 
@@ -105,6 +98,77 @@ export default function App() {
       peer.destroy();
     };
   }, []);
+
+  // Logic to connect to a specific ID
+  const connectToId = (targetShortId: string) => {
+    if (!targetShortId || !peerRef.current) return;
+    
+    const formattedId = targetShortId.toUpperCase();
+
+    // Prevent self-connection
+    if (formattedId === myId) {
+      setError("You cannot connect to yourself.");
+      return;
+    }
+
+    if (!isOnline) {
+      setError("Internet connection required to establish initial pairing.");
+      return;
+    }
+
+    setIsConnecting(true);
+    setError(null);
+
+    const targetFullId = `${APP_PREFIX}${formattedId}`;
+    
+    console.log("Attempting to connect to:", targetFullId);
+
+    // Add reliable: true for better large file handling
+    const conn = peerRef.current.connect(targetFullId, { reliable: true });
+    
+    // Connection timeout failsafe
+    const timeoutTimer = setTimeout(() => {
+      if (!conn.open) {
+        conn.close();
+        setIsConnecting(false);
+        setError("Connection timed out. Devices might be behind firewalls preventing P2P.");
+      }
+    }, 15000); 
+
+    // Hook into the connection events
+    conn.on('open', () => {
+      clearTimeout(timeoutTimer);
+      handleConnection(conn);
+    });
+
+    conn.on('error', (err: any) => {
+      clearTimeout(timeoutTimer);
+      console.error("Connection attempt error:", err);
+      setIsConnecting(false);
+      setError("Failed to connect to peer.");
+    });
+  };
+
+  // Auto-Connect Effect: Runs when Peer is ready and URL param exists
+  useEffect(() => {
+    // Only run if we are ready, not connected, and not currently connecting
+    if (!isPeerReady || connectedPeer || isConnecting) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const connectTo = params.get('connect');
+
+    if (connectTo && connectTo.length === 4) {
+      console.log("Auto-connecting to ID from URL:", connectTo);
+      setConnectionInput(connectTo.toUpperCase()); // Pre-fill UI
+      
+      // Clear the URL param so we don't loop on refresh
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Trigger connection
+      connectToId(connectTo);
+    }
+  }, [isPeerReady, connectedPeer, isConnecting]);
+
 
   const handleConnection = (conn: any) => {
     // Close existing connection if any
@@ -142,49 +206,9 @@ export default function App() {
     });
   };
 
-  const connectToPeer = (e: React.FormEvent) => {
+  const handleConnectSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!connectionInput || !peerRef.current) return;
-    
-    // Prevent self-connection
-    if (connectionInput.toUpperCase() === myId) {
-      setError("You cannot connect to yourself.");
-      return;
-    }
-
-    if (!isOnline) {
-      setError("Internet connection required to establish initial pairing.");
-      return;
-    }
-
-    setIsConnecting(true);
-    setError(null);
-
-    const targetFullId = `${APP_PREFIX}${connectionInput.toUpperCase()}`;
-    
-    // Add reliable: true for better large file handling
-    const conn = peerRef.current.connect(targetFullId, { reliable: true });
-    
-    // Connection timeout failsafe
-    const timeoutTimer = setTimeout(() => {
-      if (!conn.open) {
-        conn.close();
-        setIsConnecting(false);
-        setError("Connection timed out. Devices might be behind firewalls preventing P2P.");
-      }
-    }, 15000); // Increased to 15s for slow networks
-
-    // Hook into the connection events we just created
-    conn.on('open', () => {
-      clearTimeout(timeoutTimer);
-      // handleConnection will be called inside the peer.connect logic or we call it here
-      handleConnection(conn);
-    });
-
-    conn.on('error', (err: any) => {
-      clearTimeout(timeoutTimer);
-      setIsConnecting(false);
-    });
+    connectToId(connectionInput);
   };
 
   const handleData = (message: PeerMessage) => {
@@ -471,7 +495,7 @@ export default function App() {
               <p className="text-slate-400 text-sm mb-6">
                 Enter the ID from the other device to pair securely.
               </p>
-              <form onSubmit={connectToPeer} className="space-y-4">
+              <form onSubmit={handleConnectSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Peer ID</label>
                   <input

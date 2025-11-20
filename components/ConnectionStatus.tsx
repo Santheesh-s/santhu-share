@@ -26,10 +26,28 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareLink = () => {
+  const shareLink = async () => {
+    if (!myId) return;
     const url = `${window.location.origin}${window.location.pathname}?connect=${myId}`;
-    navigator.clipboard.writeText(url);
-    setShared(true);
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Connect to AirShare P2P',
+          text: `Connect to ${displayName} to share files securely.`,
+          url: url
+        });
+        setShared(true);
+      } catch (err) {
+        console.log('Error sharing:', err);
+        // Fallback to clipboard if user cancelled or failed
+      }
+    } else {
+      // Desktop Fallback
+      navigator.clipboard.writeText(url);
+      setShared(true);
+    }
+    
     setTimeout(() => setShared(false), 2000);
   };
 
@@ -46,18 +64,18 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
             <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">You are</p>
             <h3 className="text-lg font-bold text-white">{displayName}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-sm text-slate-400">ID: <span className="font-mono text-blue-300">{myId}</span></span>
+              <span className="text-sm text-slate-400">ID: <span className="font-mono text-blue-300">{myId || '...'}</span></span>
               <button onClick={copyToClipboard} className="text-slate-500 hover:text-slate-300 transition-colors p-1" title="Copy ID">
                 {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
               </button>
               
-              {!connectedTo && (
+              {!connectedTo && myId && (
                  <button 
                    onClick={shareLink} 
                    className="flex items-center gap-1 text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded hover:bg-blue-600/30 transition-colors ml-2"
                  >
                    {shared ? <Check size={12} /> : <Share2 size={12} />}
-                   {shared ? 'Copied Link' : 'Share Link'}
+                   {shared ? 'Link Sent' : 'Share Link'}
                  </button>
               )}
             </div>
