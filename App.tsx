@@ -58,14 +58,14 @@ export default function App() {
   // Reconnect on visibility change (mobile tab switching)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && peerRef.current?.disconnected) {
+      if (document.visibilityState === 'visible' && peerRef.current?.disconnected && isOnline) {
         console.log("Tab visible, reconnecting signaling...");
         peerRef.current.reconnect();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [isOnline]);
 
   // Initialize Peer
   useEffect(() => {
@@ -79,10 +79,10 @@ export default function App() {
     
     console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey}, LAN Mode: ${lanMode})`);
 
-    // LAN Mode Configuration:
-    // If enabled, we send an empty iceServers array. This forces the browser to ignore
-    // public STUN servers and only gather Local IP candidates.
-    // This is critical for Mobile Hotspots which often advertise a Cellular IP that cannot be routed to.
+    // If we are offline, we use empty iceServers to try local mDNS only.
+    // If LAN Mode is on, we also use empty iceServers.
+    const useLocalOnly = lanMode || !isOnline;
+
     const peerConfig = {
       host: '0.peerjs.com',
       port: 443,
@@ -90,11 +90,12 @@ export default function App() {
       debug: 1, 
       pingInterval: 5000,
       config: {
-        iceServers: lanMode ? [] : [
+        iceServers: useLocalOnly ? [] : [
           { urls: 'stun:stun.l.google.com:19302' },
         ],
         sdpSemantics: 'unified-plan',
-        iceCandidatePoolSize: 2
+        iceCandidatePoolSize: 10, // Increased pool size for faster gathering
+        iceTransportPolicy: 'all'
       },
     };
 
@@ -109,16 +110,20 @@ export default function App() {
     peer.on('disconnected', () => {
       console.log("Disconnected from signaling server. P2P connections may still persist.");
       setIsPeerReady(false);
-      // Immediate auto-reconnect attempt handled by library or manual trigger if needed
+      // Only try to reconnect if we think we are online
+      if (navigator.onLine) {
+        // peer.reconnect() is handled by manual trigger or visibility change usually
+      }
     });
 
     peer.on('connection', (conn: any) => {
       console.log("Incoming connection from:", conn.peer);
       
-      // Glare handling: If we are trying to connect to someone, and they connect to us
-      // roughly at the same time, prefer the incoming connection to avoid deadlock.
+      // Collision Handling:
+      // If we are currently trying to connect to X, and X connects to us:
+      // Accept X's connection and cancel our outgoing attempt.
       if (connectingToRef.current) {
-        console.warn(`Race condition detected. Dropping outgoing attempt to ${connectingToRef.current} in favor of incoming ${conn.peer}`);
+        console.warn(`Collision detected. Accepting incoming ${conn.peer} and dropping outgoing attempt.`);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
@@ -140,7 +145,7 @@ export default function App() {
           if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError(`Device ID not found. Ensure the other device is open and connected.`);
+          setError(`Device ID not found. Ensure the other device is open, connected to internet, and waiting.`);
           return;
         }
       }
@@ -157,7 +162,7 @@ export default function App() {
         peerRef.current.destroy();
       }
     };
-  }, [myId, resetKey, lanMode]);
+  }, [myId, resetKey, lanMode, isOnline]);
 
   // Reset Network Handler
   const handleResetNetwork = () => {
@@ -176,7 +181,6 @@ export default function App() {
     if (connRef.current) connRef.current.close();
     setConnectedPeer(null);
     setIsConnecting(false);
-    // resetKey isn't strictly needed as lanMode change triggers useEffect, but safe to reset state
     setConnectionInput('');
     setError(null);
   };
@@ -193,9 +197,15 @@ export default function App() {
       return;
     }
 
+    // Check signaling status BEFORE trying to connect
     if (peerRef.current.disconnected) {
-       console.log("Peer disconnected, attempting reconnect before call...");
+       console.log("Peer disconnected, attempting reconnect...");
        peerRef.current.reconnect();
+       // Give it a moment or warn user
+       if (!isOnline) {
+         setError("Signaling server unreachable. Internet is required to start the connection.");
+         return;
+       }
     }
 
     if (connectingToRef.current === targetFullId) return;
@@ -213,9 +223,8 @@ export default function App() {
     console.log("Attempting to connect to:", targetFullId);
 
     try {
-      const conn = peerRef.current.connect(targetFullId, {
-        reliable: false // UDP is better for mobile/hotspots
-      });
+      // We do NOT force reliable: true, as UDP is better for firewalls
+      const conn = peerRef.current.connect(targetFullId);
       
       connectionTimeoutRef.current = setTimeout(() => {
         if (!conn.open) {
@@ -624,9 +633,9 @@ export default function App() {
                 <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
                   <p className="font-semibold mb-1">Troubleshooting Tips:</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
-                    <li><strong>Try enabling "LAN Mode"</strong> (toggle at top right) on BOTH devices.</li>
-                    <li>If using a Mobile Hotspot, turn OFF Mobile Data on the host phone temporarily.</li>
-                    <li>Ensure no VPN is active.</li>
+                    <li><strong>Ensure Mobile Data is ON</strong> while connecting. You can turn it off after connection.</li>
+                    <li>Try enabling "LAN Mode" (toggle at top right) on BOTH devices.</li>
+                    <li>If using a Hotspot, ensure the client device is connected to the correct Wi-Fi.</li>
                   </ul>
                 </div>
              )}
@@ -691,14 +700,14 @@ export default function App() {
                      <span>Negotiating {lanMode ? 'Local' : 'Network'} Path...</span>
                    </div>
                    <p className="text-[10px] text-slate-400">
-                     {lanMode ? 'Scanning local Wi-Fi. Ensure both devices are on the same network.' : 'Negotiating connection. If stuck, try enabling LAN Mode.'}
+                     {lanMode ? 'Scanning local Wi-Fi. Ensure both devices are on the same network.' : 'Finding optimal path. This might take 30 seconds.'}
                    </p>
                  </div>
               )}
               
               {isConnecting && iceState === 'disconnected' && (
                 <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 text-xs text-amber-300">
-                  Direct path failed. Retrying...
+                  Direct path failed. Retrying with alternative candidates...
                 </div>
               )}
 
