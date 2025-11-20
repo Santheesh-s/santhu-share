@@ -24,7 +24,7 @@ export default function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isPeerReady, setIsPeerReady] = useState(false);
+  const [signalingConnected, setSignalingConnected] = useState(false);
   const [iceState, setIceState] = useState<string>('new');
   
   // LAN Mode: If true, disables STUN servers to force Local Wi-Fi discovery (Fix for Hotspots)
@@ -58,9 +58,11 @@ export default function App() {
   // Reconnect on visibility change (mobile tab switching)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && peerRef.current?.disconnected && isOnline) {
-        console.log("Tab visible, reconnecting signaling...");
-        peerRef.current.reconnect();
+      if (document.visibilityState === 'visible' && isOnline && peerRef.current && !peerRef.current.destroyed) {
+        if (peerRef.current.disconnected) {
+          console.log("Tab visible, reconnecting signaling...");
+          peerRef.current.reconnect();
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -73,28 +75,32 @@ export default function App() {
     if (peerRef.current) {
       peerRef.current.destroy();
       peerRef.current = null;
+      setSignalingConnected(false);
     }
 
     const fullId = `${APP_PREFIX}${myId}`;
     
     console.log(`Initializing Peer with ID: ${fullId} (Reset Ver: ${resetKey}, LAN Mode: ${lanMode})`);
 
-    // If we are offline, we use empty iceServers to try local mDNS only.
-    // If LAN Mode is on, we also use empty iceServers.
-    const useLocalOnly = lanMode || !isOnline;
+    // STUN Servers Strategy
+    // Standard Mode: Use reliable public STUN servers to punch through NATs
+    // LAN Mode: Empty list forces mDNS/Local IP usage (Critical for some Hotspots)
+    const stunServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ];
 
     const peerConfig = {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
       debug: 1, 
-      pingInterval: 5000,
+      pingInterval: 10000, // Keep-alive for signaling
       config: {
-        iceServers: useLocalOnly ? [] : [
-          { urls: 'stun:stun.l.google.com:19302' },
-        ],
+        iceServers: lanMode ? [] : stunServers,
         sdpSemantics: 'unified-plan',
-        iceCandidatePoolSize: 10, // Increased pool size for faster gathering
         iceTransportPolicy: 'all'
       },
     };
@@ -103,27 +109,29 @@ export default function App() {
 
     peer.on('open', (id: string) => {
       console.log('Peer connection open. ID:', id);
-      setIsPeerReady(true);
+      setSignalingConnected(true);
       setError(null);
     });
 
     peer.on('disconnected', () => {
-      console.log("Disconnected from signaling server. P2P connections may still persist.");
-      setIsPeerReady(false);
-      // Only try to reconnect if we think we are online
-      if (navigator.onLine) {
-        // peer.reconnect() is handled by manual trigger or visibility change usually
+      console.log("Disconnected from signaling server.");
+      setSignalingConnected(false);
+      // Auto-reconnect if internet is available
+      if (navigator.onLine && !peer.destroyed) {
+        setTimeout(() => {
+           if (!peer.destroyed && peer.disconnected) peer.reconnect();
+        }, 2000);
       }
     });
 
     peer.on('connection', (conn: any) => {
       console.log("Incoming connection from:", conn.peer);
       
-      // Collision Handling:
-      // If we are currently trying to connect to X, and X connects to us:
-      // Accept X's connection and cancel our outgoing attempt.
-      if (connectingToRef.current) {
-        console.warn(`Collision detected. Accepting incoming ${conn.peer} and dropping outgoing attempt.`);
+      // Collision Handling (Polite Peer Strategy):
+      // If we are currently trying to connect to them, but they called us first:
+      // We ACCEPT their connection and stop our timer.
+      if (connectingToRef.current === conn.peer) {
+        console.warn(`Collision resolved. Accepting incoming connection from ${conn.peer}.`);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         setIsConnecting(false);
         connectingToRef.current = null;
@@ -145,7 +153,7 @@ export default function App() {
           if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
           setIsConnecting(false);
           connectingToRef.current = null;
-          setError(`Device ID not found. Ensure the other device is open, connected to internet, and waiting.`);
+          setError(`Device ID not found. Check if the ID is correct and the other device is online.`);
           return;
         }
       }
@@ -161,8 +169,9 @@ export default function App() {
       if (peerRef.current) {
         peerRef.current.destroy();
       }
+      setSignalingConnected(false);
     };
-  }, [myId, resetKey, lanMode, isOnline]);
+  }, [myId, resetKey, lanMode]);
 
   // Reset Network Handler
   const handleResetNetwork = () => {
@@ -198,14 +207,15 @@ export default function App() {
     }
 
     // Check signaling status BEFORE trying to connect
-    if (peerRef.current.disconnected) {
-       console.log("Peer disconnected, attempting reconnect...");
+    if (!signalingConnected && !peerRef.current.open) {
+       // Try one last reconnect
        peerRef.current.reconnect();
-       // Give it a moment or warn user
-       if (!isOnline) {
-         setError("Signaling server unreachable. Internet is required to start the connection.");
-         return;
-       }
+       setTimeout(() => {
+         if (!signalingConnected) {
+           setError("Cannot reach Handshake Server. Ensure you have Internet/Data for the initial pairing.");
+         }
+       }, 1500);
+       return;
     }
 
     if (connectingToRef.current === targetFullId) return;
@@ -223,18 +233,19 @@ export default function App() {
     console.log("Attempting to connect to:", targetFullId);
 
     try {
-      // We do NOT force reliable: true, as UDP is better for firewalls
+      // Connect with default reliable: false (UDP) for better NAT traversal
       const conn = peerRef.current.connect(targetFullId);
       
       connectionTimeoutRef.current = setTimeout(() => {
         if (!conn.open) {
           console.warn("Connection timed out for:", targetFullId);
-          conn.close();
+          // Don't close immediately, sometimes it connects right after timeout
+          // just update UI
           setIsConnecting(false);
           connectingToRef.current = null;
           setError("Connection timed out. Firewalls might be blocking the direct path.");
         }
-      }, 45000); // 45s timeout
+      }, 30000); // 30s timeout
 
       conn.on('open', () => {
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
@@ -266,7 +277,7 @@ export default function App() {
 
   // Auto-Connect Effect
   useEffect(() => {
-    if (!isPeerReady || connectedPeer || isConnecting) return;
+    if (!signalingConnected || connectedPeer || isConnecting) return;
 
     const params = new URLSearchParams(window.location.search);
     const connectTo = params.get('connect');
@@ -280,11 +291,12 @@ export default function App() {
       window.history.replaceState({}, '', window.location.pathname);
       connectToId(connectTo);
     }
-  }, [isPeerReady, connectedPeer, isConnecting]);
+  }, [signalingConnected, connectedPeer, isConnecting]);
 
 
   const handleConnection = (conn: any) => {
-    if (connRef.current && connRef.current !== conn) {
+    // Close existing connection if it's a different one
+    if (connRef.current && connRef.current !== conn && connRef.current.open) {
       connRef.current.close();
     }
     connRef.current = conn;
@@ -326,7 +338,7 @@ export default function App() {
         if(conn.open) {
            try { conn.send({ type: 'PING' }); } catch(e) {}
         }
-      }, 4000);
+      }, 5000);
     };
 
     if (conn.open) {
@@ -594,9 +606,9 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4 flex-wrap justify-center">
-          <div className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full border ${isOnline ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
-            {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-            <span className="hidden sm:inline">{isOnline ? 'Signaling Server Online' : 'Offline'}</span>
+          <div className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full border transition-colors ${signalingConnected ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+            {signalingConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
+            <span className="hidden sm:inline font-medium">{signalingConnected ? 'Signaling Online' : 'Signaling Disconnected'}</span>
           </div>
 
           <div className="hidden md:flex items-center gap-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
@@ -631,11 +643,11 @@ export default function App() {
              <p className="font-medium">{error}</p>
              {(error.includes("timed out") || error.includes("Failed to establish")) && (
                 <div className="text-sm mt-2 bg-red-500/20 p-3 rounded text-red-100">
-                  <p className="font-semibold mb-1">Troubleshooting Tips:</p>
+                  <p className="font-semibold mb-1">Hotspot Troubleshooting:</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
-                    <li><strong>Ensure Mobile Data is ON</strong> while connecting. You can turn it off after connection.</li>
-                    <li>Try enabling "LAN Mode" (toggle at top right) on BOTH devices.</li>
-                    <li>If using a Hotspot, ensure the client device is connected to the correct Wi-Fi.</li>
+                    <li><strong>Ensure Mobile Data is ON</strong> on the phone while pairing.</li>
+                    <li>Ensure client is connected to the Host's Wi-Fi.</li>
+                    <li>Try toggling "LAN Mode" on BOTH devices.</li>
                   </ul>
                 </div>
              )}
@@ -650,12 +662,12 @@ export default function App() {
         <div className="lg:col-span-1 space-y-6">
           {!connectedPeer ? (
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-6 relative overflow-hidden">
-              {!isOnline && (
+              {!isOnline && !lanMode && (
                  <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-10 p-6 text-center">
                    <div>
                      <WifiOff size={32} className="mx-auto mb-2 text-slate-500" />
                      <p className="text-slate-300 font-medium">Internet Required</p>
-                     <p className="text-xs text-slate-500 mt-1">You need internet to find peers. Once connected, file sharing is offline/local.</p>
+                     <p className="text-xs text-slate-500 mt-1">You need internet to pair devices initially. (Unless using LAN Mode).</p>
                    </div>
                  </div>
               )}
@@ -679,7 +691,7 @@ export default function App() {
                 <Button 
                   type="submit" 
                   fullWidth 
-                  disabled={!connectionInput || connectionInput.length < 4 || (!isOnline && !peerRef.current?.open) || isConnecting}
+                  disabled={!connectionInput || connectionInput.length < 4 || (!signalingConnected && !peerRef.current?.open) || isConnecting}
                   className="flex items-center justify-center gap-2"
                 >
                   {isConnecting ? (
@@ -700,21 +712,21 @@ export default function App() {
                      <span>Negotiating {lanMode ? 'Local' : 'Network'} Path...</span>
                    </div>
                    <p className="text-[10px] text-slate-400">
-                     {lanMode ? 'Scanning local Wi-Fi. Ensure both devices are on the same network.' : 'Finding optimal path. This might take 30 seconds.'}
+                     {lanMode ? 'Scanning local Wi-Fi. This may fail if mDNS is blocked.' : 'Finding optimal path via STUN/Public IP.'}
                    </p>
                  </div>
               )}
               
               {isConnecting && iceState === 'disconnected' && (
                 <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 text-xs text-amber-300">
-                  Direct path failed. Retrying with alternative candidates...
+                  Direct path failed. Retrying...
                 </div>
               )}
 
               <div className="mt-6 pt-6 border-t border-slate-700/50">
                 <div className="flex items-start gap-3 text-xs text-slate-500">
                   <Info size={16} className="flex-shrink-0 mt-0.5" />
-                  <p>Internet is only used for the initial handshake. Files are transferred directly over Wi-Fi.</p>
+                  <p>Internet used for pairing. Transfer is P2P (Wi-Fi).</p>
                 </div>
               </div>
             </div>
